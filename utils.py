@@ -50,17 +50,14 @@ def create_data_loaders(args):
 
 def parse_command():
     model_names = ['resnet18', 'resnet50', 'mobilenet']
-    loss_names = ['l1', 'l2']
-    data_names = ['nyudepthv2', 'kitti', 'deepscene', 'sun', 'zed']
-    from dataloaders.dense_to_sparse import UniformSampling, SimulatedStereo
-    sparsifier_names = [x.name for x in [UniformSampling, SimulatedStereo]]
-    from models import Decoder
-    decoder_names = Decoder.names
-    from dataloaders.dataloader import MyDataloader
-    modality_names = MyDataloader.modality_names
+    loss_names = ['l1', 'l2', 'bce']
+    data_names = ['nyudepthv2']
 
     import argparse
     parser = argparse.ArgumentParser(description='Sparse-to-Dense')
+    parser.add_argument('--save-path', default='', type=str, metavar='PATH',
+                        help='path to save things')
+    
     parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18', choices=model_names,
                         help='model architecture: ' + ' | '.join(model_names) + ' (default: resnet18)')
     parser.add_argument('--data', metavar='DATA', default='nyudepthv2',
