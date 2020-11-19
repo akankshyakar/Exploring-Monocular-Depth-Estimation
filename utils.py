@@ -66,6 +66,13 @@ def parse_command():
 
     parser.add_argument('--epoch-size', default=500, type=int, metavar='N',
                     help='manual epoch size (will match dataset size if not set)')
+    parser.add_argument('--sequence-length', type=int, metavar='N', help='sequence length for training', default=15)
+    parser.add_argument('--pretrained-disp', dest='pretrained_disp', default=None, metavar='PATH',
+                    help='path to pre-trained dispnet model')
+    parser.add_argument('--pretrained-exppose', dest='pretrained_exp_pose', default=None, metavar='PATH',
+                    help='path to pre-trained Exp Pose net model')
+    parser.add_argument('-f', '--training-output-freq', type=int, help='frequence for outputting dispnet outputs and warped imgs at training for all scales if 0 will not output',
+                    metavar='N', default=0)
     
     parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18', choices=model_names,
                         help='model architecture: ' + ' | '.join(model_names) + ' (default: resnet18)')
