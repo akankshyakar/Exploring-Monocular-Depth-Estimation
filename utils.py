@@ -8,6 +8,7 @@ import torch.backends.cudnn as cudnn
 import torch.optim
 
 from dataloader.nyu_dataloader import NYUDataset
+from dataloader.dataloader import MyDataloader
 import os
 import torch
 import shutil
@@ -19,26 +20,26 @@ cmap = plt.cm.viridis
 cudnn.benchmark = True
 
 def create_data_loaders(args):
-	print("=> creating data loaders ...")
-	traindir = os.path.join('data', args.data, 'train')
-	valdir = os.path.join('data', args.data, 'val')
-	train_loader = None
-	val_loader = None
-	sparsifier = None #class for generating random sparse depth input from the ground truth
-	if args.data == 'nyudepthv2':
-	    if not args.evaluate:
-	        train_dataset = NYUDataset(traindir, type='train',
-	            modality=args.modality, sparsifier=sparsifier)
-	    val_dataset = NYUDataset(valdir, type='val',
-	        modality=args.modality, sparsifier=sparsifier)
-	else:
-	    raise RuntimeError('Dataset not found.' +
-	                       'The dataset must be either of nyudepthv2, kitti, or zed.')
+    print("=> creating data loaders ...")
+    traindir = os.path.join(args.path, args.data, 'train')
+    valdir = os.path.join(args.path, args.data, 'val')
+    train_loader = None
+    val_loader = None
+    sparsifier = None #class for generating random sparse depth input from the ground truth
+    if args.data == 'nyudepthv2':
+        if not args.evaluate:
+            train_dataset = NYUDataset(traindir, type='train',
+                modality=args.modality, sparsifier=sparsifier)
+        val_dataset = NYUDataset(valdir, type='val',
+            modality=args.modality, sparsifier=sparsifier)
+    else:
+        raise RuntimeError('Dataset not found.' +
+                           'The dataset must be either of nyudepthv2, kitti, or zed.')
 
-	val_loader = torch.utils.data.DataLoader(val_dataset,
+    val_loader = torch.utils.data.DataLoader(val_dataset,
         batch_size=1, shuffle=False, num_workers=args.workers, pin_memory=True)
 
-	if not args.evaluate:
+    if not args.evaluate:
         train_loader = torch.utils.data.DataLoader(
             train_dataset, batch_size=args.batch_size, shuffle=True,
             num_workers=args.workers, pin_memory=True, sampler=None,
@@ -52,11 +53,19 @@ def parse_command():
     model_names = ['resnet18', 'resnet50', 'mobilenet']
     loss_names = ['l1', 'l2', 'bce']
     data_names = ['nyudepthv2']
+    modality_names = MyDataloader.modality_names
+
 
     import argparse
     parser = argparse.ArgumentParser(description='Sparse-to-Dense')
     parser.add_argument('--save-path', default='', type=str, metavar='PATH',
                         help='path to save things')
+    parser.add_argument('--path', default='', type=str, metavar='PATH',
+                        help='path to load train and validation')
+    parser.add_argument('--seed', default=0, type=int, help='seed for random functions, and network initialization')
+
+    parser.add_argument('--epoch-size', default=500, type=int, metavar='N',
+                    help='manual epoch size (will match dataset size if not set)')
     
     parser.add_argument('--arch', '-a', metavar='ARCH', default='resnet18', choices=model_names,
                         help='model architecture: ' + ' | '.join(model_names) + ' (default: resnet18)')
@@ -69,10 +78,10 @@ def parse_command():
                         help='number of sparse depth samples (default: 0)')
     parser.add_argument('--max-depth', default=-1.0, type=float, metavar='D',
                         help='cut-off depth of sparsifier, negative values means infinity (default: inf [m])')
-    parser.add_argument('--sparsifier', metavar='SPARSIFIER', default=UniformSampling.name, choices=sparsifier_names,
-                        help='sparsifier: ' + ' | '.join(sparsifier_names) + ' (default: ' + UniformSampling.name + ')')
-    parser.add_argument('--decoder', '-d', metavar='DECODER', default='deconv2', choices=decoder_names,
-                        help='decoder: ' + ' | '.join(decoder_names) + ' (default: deconv2)')
+    # parser.add_argument('--sparsifier', metavar='SPARSIFIER', default=UniformSampling.name, choices=sparsifier_names,
+    #                     help='sparsifier: ' + ' | '.join(sparsifier_names) + ' (default: ' + UniformSampling.name + ')')
+    # parser.add_argument('--decoder', '-d', metavar='DECODER', default='deconv2', choices=decoder_names,
+    #                     help='decoder: ' + ' | '.join(decoder_names) + ' (default: deconv2)')
     parser.add_argument('-j', '--workers', default=10, type=int, metavar='N',
                         help='number of data loading workers (default: 10)')
     parser.add_argument('--epochs', default=15, type=int, metavar='N',
@@ -183,3 +192,19 @@ def add_row(img_merge, row):
 def save_image(img_merge, filename):
     img_merge = Image.fromarray(img_merge.astype('uint8'))
     img_merge.save(filename)
+
+def log_output_tensorboard(writer, prefix, index, suffix, n_iter, depth, disp, warped, diff, mask):
+    disp_to_show = tensor2array(disp[-1][0], max_value=None, colormap='magma')
+    depth_to_show = tensor2array(depth[-1][0], max_value=None)
+    writer.add_image('{} Dispnet Output Normalized {}/{}'.format(prefix, suffix, index), disp_to_show, n_iter)
+    writer.add_image('{} Depth Output Normalized {}/{}'.format(prefix, suffix, index), depth_to_show, n_iter)
+    # log warped images along with explainability mask
+    for j, (warped_j, diff_j) in enumerate(zip(warped, diff)):
+        whole_suffix = '{} {}/{}'.format(suffix, j, index)
+        warped_to_show = tensor2array(warped_j)
+        diff_to_show = tensor2array(0.5*diff_j)
+        writer.add_image('{} Warped Outputs {}'.format(prefix, whole_suffix), warped_to_show, n_iter)
+        writer.add_image('{} Diff Outputs {}'.format(prefix, whole_suffix), diff_to_show, n_iter)
+        if mask is not None:
+            mask_to_show = tensor2array(mask[0,j], max_value=1, colormap='bone')
+            writer.add_image('{} Exp mask Outputs {}'.format(prefix, whole_suffix), mask_to_show, n_iter)

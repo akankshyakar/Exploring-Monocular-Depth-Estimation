@@ -3,8 +3,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 
-import ipdb
-st = ipdb.set_trace
 def downsample_conv(in_planes, out_planes, kernel_size=3):
     return nn.Sequential(
         nn.Conv2d(in_planes, out_planes, kernel_size=kernel_size, stride=2, padding=(kernel_size-1)//2),
@@ -40,10 +38,10 @@ def crop_like(input, ref):
     return input[:, :, :ref.size(2), :ref.size(3)]
 
 
-class DispNetS(nn.Module):
+class DispNet(nn.Module):
 
     def __init__(self, alpha=10, beta=0.01, lstmcode_length = 128):
-        super(DispNetS, self).__init__()
+        super(DispNet, self).__init__()
 
         self.alpha = alpha
         self.beta = beta

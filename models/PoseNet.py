@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 from torch import sigmoid
 from torch.nn.init import xavier_uniform_, zeros_
-import ipdb
-st = ipdb.set_trace
+
 
 def conv(in_planes, out_planes, kernel_size=3):
     return nn.Sequential(
@@ -19,10 +18,10 @@ def upconv(in_planes, out_planes):
     )
 
 
-class PoseExpNet(nn.Module):
+class PoseNet(nn.Module):
 
     def __init__(self, nb_ref_imgs=2, output_exp=False): #14
-        super(PoseExpNet, self).__init__()
+        super(PoseNet, self).__init__()
         self.nb_ref_imgs = nb_ref_imgs
         self.output_exp = output_exp
 

@@ -8,18 +8,17 @@ import numpy as np
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
-import custom_transforms
+# import custom_transforms
 import models
 import utils
-from utils import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard
+from utils import save_checkpoint, create_data_loaders, parse_command
 import pdb
+st = pdb.set_trace
 import loss_functions
 from logger import TermLogger, AverageMeter
 from tensorboardX import SummaryWriter
 import torchvision
-import ipdb 
-st=  ipdb.set_trace
-
+from path import Path
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
@@ -30,14 +29,14 @@ device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cp
 img_shape = (3, 480, 640) #TODO: img shape
 debug = False 
 
+args = utils.parse_command()
+
 def main():
     global best_error, n_iter, device, scheduler
-    args = parser.parse_args()
 
     print('=> will save everything to {}'.format(args.save_path))
-    if debug:
-        st()
-    args.save_path.makedirs_p()
+    save_path = Path(','.join(args.save_path))
+    save_path.makedirs_p()
     torch.manual_seed(args.seed)
     if args.evaluate:
         #TODO load model 

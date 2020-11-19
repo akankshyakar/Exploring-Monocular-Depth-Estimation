@@ -5,25 +5,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 import models
-from models import optical_flow_extractor
-from loss_functions import trajectory_loss, structured_sim_loss, photometric_reconstruction_loss, explainability_loss, smooth_loss, smooth_loss_sfm, compute_errors
-from utils import tensor2array, save_checkpoint, save_path_formatter, log_output_tensorboard,vis_optflow
+from utils import save_checkpoint, log_output_tensorboard
 import utils
 import pdb
 import numpy as np
-import ipdb
-st = ipdb.set_trace
+
 import matplotlib.pyplot as plt
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
 # import numpy as np
-class LSTMRunner(nn.Module):
+class Runner(nn.Module):
     def __init__(self, args):
-        super(LSTMRunner, self).__init__()
+        super(Runner, self).__init__()
         self.hidden_dim = 128
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        self.disp_net = models.DispNetS().to(self.device)
+        self.disp_net = models.DispNet().to(self.device)
         self.pose_exp_net = models.PoseExpNet(nb_ref_imgs=args.sequence_length-1,output_exp=True).to(self.device)
         self.lstm = nn.LSTM(self.hidden_dim, self.hidden_dim).to(self.device)
 
@@ -51,8 +48,6 @@ class LSTMRunner(nn.Module):
             self.encoder.init_weights()
         self.args = args
 
-        self.__p = lambda x: utils.pack_seqdim(x, args.batch_size)
-        self.__u = lambda x: utils.unpack_seqdim(x, args.batch_size)
 
     def get_optical_flow(self, imgs):
         # st()
