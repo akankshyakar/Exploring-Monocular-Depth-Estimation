@@ -40,7 +40,7 @@ def crop_like(input, ref):
 
 class DispNet(nn.Module):
 
-    def __init__(self, alpha=10, beta=0.01, lstmcode_length = 128):
+    def __init__(self, alpha=10, beta=0.01):
         super(DispNet, self).__init__()
 
         self.alpha = alpha
@@ -57,7 +57,7 @@ class DispNet(nn.Module):
 
         
         upconv_planes = [512, 512, 256, 128, 64, 32, 16]
-        self.upconv7 = upconv(conv_planes[6] + lstmcode_length,   upconv_planes[0])
+        self.upconv7 = upconv(conv_planes[6],   upconv_planes[0])
         self.upconv6 = upconv(upconv_planes[0], upconv_planes[1])
         self.upconv5 = upconv(upconv_planes[1], upconv_planes[2])
         self.upconv4 = upconv(upconv_planes[2], upconv_planes[3])
@@ -85,7 +85,7 @@ class DispNet(nn.Module):
                 if m.bias is not None:
                     zeros_(m.bias)
 
-    def forward(self, x, lstm_code, __u):
+    def forward(self, x):
         out_conv1 = self.conv1(x)
         out_conv2 = self.conv2(out_conv1)
         out_conv3 = self.conv3(out_conv2)
@@ -93,10 +93,6 @@ class DispNet(nn.Module):
         out_conv5 = self.conv5(out_conv4)
         out_conv6 = self.conv6(out_conv5)
         out_conv7 = self.conv7(out_conv6)
-
-        lstm_code = lstm_code.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, out_conv7.shape[-2], out_conv7.shape[-1])
-        # Concatenate lstm code with rgb feature.
-        out_conv7 = torch.cat((out_conv7, lstm_code), dim=1)
 
         out_upconv7 = crop_like(self.upconv7(out_conv7), out_conv6)
         concat7 = torch.cat((out_upconv7, out_conv6), 1)
@@ -134,6 +130,6 @@ class DispNet(nn.Module):
         disp1 = self.alpha * self.predict_disp1(out_iconv1) + self.beta
 
         if self.training:
-            return __u(disp1), __u(disp2), __u(disp3), __u(disp4)
+            return disp1, disp2, disp3, disp4
         else:
-            return __u(disp1)
+            return disp1

@@ -82,7 +82,7 @@ def main():
                 if debug:
                     st()
                 # if (epoch+2)%4==0:
-                errors, error_names = validate(args, val_loader_gt, lstmNet, epoch, logger, tb_writer)
+                errors, error_names = validate(args, val_loader, model, epoch, logger, tb_writer)
             
             error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
             logger.valid_writer.write(' * Avg {}'.format(error_string))
@@ -114,17 +114,18 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
     end = time.time()
     logger.train_bar.update(0)
   
-    for i, (input, tgt_img) in enumerate(train_loader):
+    for i, (img, depth) in enumerate(train_loader):
         # st()
         log_losses = i > 0 and n_iter % args.print_freq == 0
         log_output = args.training_output_freq > 0 and n_iter % args.training_output_freq == 0
 
         # measure data loading time
         data_time.update(time.time() - end)
-        tgt_img = tgt_img.to(device)
+        depth = depth.to(device)
+        img = img.to(device)
 
-
-        loss = model(tgt_img, log_losses, log_output, tb_writer, n_iter, False, mode ='train')
+        # st()
+        loss = model(img, depth, log_losses, log_output, tb_writer, n_iter, False, mode ='train')
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
 
@@ -149,10 +150,11 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
 
     return losses.avg[0]
 
-def validate (val_loader, model, epoch, write_to_file=True):
+# def validate (val_loader, model, epoch, write_to_file=True):
+def validate (args, val_loader, model, epoch, logger, tb_write):
     batch_time = AverageMeter()
     data_time = AverageMeter()
-    #TODO comlete it
+    #TODO complete it
     
 
 

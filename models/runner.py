@@ -12,6 +12,7 @@ import numpy as np
 import pdb
 st = pdb.set_trace
 import matplotlib.pyplot as plt
+from loss.VNL import VNL_Loss
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
@@ -41,31 +42,33 @@ class Runner(nn.Module):
             self.disp_net.init_weights()
         self.args = args
         self.l1_loss = nn.L1Loss()
+        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
 
     
-    def forward(self, tgt_img, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train'):
+    def forward(self, img, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train'):
 
         # compute output
-        w1, w2, w3 ,w4 = 1,1,1,1 #TODO set weights for various losses here
+        # w1, w2, w3 ,w4 = 1,1,1,1 #TODO set weights for various losses here
         # st()
-        # disparities = self.disp_net(self.__p(rgbs_from_first), self.__p(optical_codes), self.__u)
-        disparities =[1,1]
+        disparities = self.disp_net(img) # 4 [8, 1, 448, 448]
+        # disparities =[1,1]
         if type(disparities) not in [tuple, list]:
             disparities = [disparities]
         depth = [1/disp for disp in disparities]
-        depth = torch.ones(tgt_img.shape).to(device)
+        # depth = torch.ones(tgt_img.shape).to(device)
         if ret_depth: #inference call
             return depth
 
         # _, pose = self.pose_exp_net(depth[0], rgbs_from_first, self.__p, self.__u)	# pose = [seq_len-2, batch , 6]
-
+        # st()
 
         ###############################################
         # Calculating losses
         ###############################################
 
         #### code for loss calculation
-        loss = self.l1_loss(depth, tgt_img)
+        # loss = self.l1_loss(depth, tgt_img)
+        loss = self.virtual_normal_loss(depth[0], gt_depth)
         # loss['a'] = 0
         # loss['b'] = 0#SECONDARY LOSS
         ###############################################
