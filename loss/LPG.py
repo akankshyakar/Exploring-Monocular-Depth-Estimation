@@ -113,7 +113,7 @@ class local_planar_guidance(nn.Module):
         self.v = torch.arange(int(self.upratio)).reshape([1, self.upratio, 1]).float()
         self.upratio = float(upratio)
 
-    def forward(self, plane_eq, focal):
+    def forward(self, plane_eq):
         plane_eq_expanded = torch.repeat_interleave(plane_eq, int(self.upratio), 2)
         plane_eq_expanded = torch.repeat_interleave(plane_eq_expanded, int(self.upratio), 3)
         n1 = plane_eq_expanded[:, 0, :, :]

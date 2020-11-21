@@ -39,40 +39,25 @@ def crop_like(input, ref):
     assert(input.size(2) >= ref.size(2) and input.size(3) >= ref.size(3))
     return input[:, :, :ref.size(2), :ref.size(3)]
 
-def LPG_func(feat, reduction, lpg, max_depth):
+def LPG_func(feat, reduction, lpg, max_depth, scale):
     '''
     feat: value from prev layer
     reduction: function which reduces to 3
     lpg: constraint of planar aaumption
     max_depth : set for dataset 
     '''
-    st()
+    # st()
     reduc = reduction(feat)
     plane_normal = reduc[:, :3, :, :]
-    plane_normal = torch_nn_func.normalize(plane_normal, 2, 1)
+    plane_normal = F.normalize(plane_normal, 2, 1)
     plane_dist = reduc[:, 3, :, :]
-    plane_eq = torch.cat([plane_normal, plane_dist_4x4.unsqueeze(1)], 1)
-    depth = lpg(plane_eq, focal)
+    plane_eq = torch.cat([plane_normal, plane_dist.unsqueeze(1)], 1)
+    depth = lpg(plane_eq)
     depth_scaled = depth.unsqueeze(1) / max_depth
-    return depth, depth_scaled
+    depth_scaled_ds = F.interpolate(depth_scaled, scale_factor=scale, mode='nearest')
+    depth = depth.unsqueeze(1)
 
-def LPG_func_last(feat, reduction, lpg, max_depth):
-    '''
-    feat: value from prev layer
-    reduction: function which reduces to 3
-    lpg: constraint of planar aaumption
-    max_depth : set for dataset 
-    '''
-    st()
-    reduc = reduction(feat)
-    plane_normal = reduc[:, :3, :, :]
-    plane_normal = torch_nn_func.normalize(plane_normal, 2, 1)
-    plane_dist = reduc[:, 3, :, :]
-    plane_eq = torch.cat([plane_normal, plane_dist_4x4.unsqueeze(1)], 1)
-    depth = lpg(plane_eq, focal)
-    depth_scaled = depth.unsqueeze(1) / max_depth
-    return depth, depth_scaled
-
+    return depth, depth_scaled, depth_scaled_ds
 
 class DispNet(nn.Module):
 
@@ -83,6 +68,7 @@ class DispNet(nn.Module):
         self.beta = beta
         self.lpg_flag = lpg_flag
         self.max_depth = max_depth
+        num_features =512
 
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
         self.conv1 = downsample_conv(3,              conv_planes[0], kernel_size=7)
@@ -118,14 +104,14 @@ class DispNet(nn.Module):
 
         self.reduc8x8   = reduction_1x1(num_features // 4, num_features // 4, self.max_depth)
         self.lpg8x8     = local_planar_guidance(8)
-        self.reduc4x4   = reduction_1x1(num_features // 4, num_features // 8, self.max_depth)
+        self.reduc4x4   = reduction_1x1(num_features // 8, num_features // 8, self.max_depth)
         self.lpg4x4     = local_planar_guidance(4)
-        self.reduc2x2   = reduction_1x1(num_features // 8, num_features // 16, self.max_depth)
+        self.reduc2x2   = reduction_1x1(num_features // 16, num_features // 16, self.max_depth)
         self.lpg2x2     = local_planar_guidance(2)
 
-        self.upconv1    = upconv(num_features // 8, num_features // 16)
-        self.reduc1x1   = reduction_1x1(num_features // 16, num_features // 32, self.max_depth, is_final=True)
-        self.conv1_lpg      = torch.nn.Sequential(nn.Conv2d(num_features // 16 + 4, num_features // 16, 3, 1, 1, bias=False),
+        self.upconv1_lpg    = upconv(num_features // 16, num_features // 16)
+        self.reduc1x1   = reduction_1x1(num_features // 32, num_features // 32, self.max_depth, is_final=True)
+        self.conv1_lpg      = torch.nn.Sequential(nn.Conv2d(4, num_features // 16, 3, 1, 1, bias=False),
                                               nn.ELU())
         self.get_depth  = torch.nn.Sequential(nn.Conv2d(num_features // 16, 1, 3, 1, 1, bias=False),
                                               nn.Sigmoid())
@@ -164,40 +150,42 @@ class DispNet(nn.Module):
         concat4 = torch.cat((out_upconv4, out_conv3), 1) #[8, 256, 56, 56]
         out_iconv4 = self.iconv4(concat4) #[8, 128, 56, 56] *
         if self.lpg_flag:
-            disp4, disp4_scaled = LPG_func(out_iconv4, self.reduc8x8, self.lpg8x8, self.max_depth)
+            disp4, disp4_scaled, disp4_scaled_ds = LPG_func(out_iconv4, self.reduc8x8, self.lpg8x8, self.max_depth, 1/8)
         else:
             disp4 = self.alpha * self.predict_disp4(out_iconv4) + self.beta #[8, 1, 56, 56]
-
+            disp4_scaled_ds = disp4
         out_upconv3 = crop_like(self.upconv3(out_iconv4), out_conv2)
-        disp4_up = crop_like(F.interpolate(disp4, scale_factor=2, mode='bilinear', align_corners=False), out_conv2)
+        disp4_up = crop_like(F.interpolate(disp4_scaled_ds, scale_factor=2, mode='bilinear', align_corners=False), out_conv2)
         concat3 = torch.cat((out_upconv3, out_conv2, disp4_up), 1)
         out_iconv3 = self.iconv3(concat3)  #[8, 64, 112, 112]
         if self.lpg_flag:
-            disp3 , disp3_scaled= LPG_func(out_iconv3, self.reduc4x4, self.lpg4x4, self.max_depth)
+            disp3, disp3_scaled, disp3_scaled_ds= LPG_func(out_iconv3, self.reduc4x4, self.lpg4x4, self.max_depth, 1/4)
         else:
             disp3 = self.alpha * self.predict_disp3(out_iconv3) + self.beta
+            disp3_scaled_ds = disp3
 
         out_upconv2 = crop_like(self.upconv2(out_iconv3), out_conv1)
-        disp3_up = crop_like(F.interpolate(disp3, scale_factor=2, mode='bilinear', align_corners=False), out_conv1)
+        disp3_up = crop_like(F.interpolate(disp3_scaled_ds, scale_factor=2, mode='bilinear', align_corners=False), out_conv1)
         concat2 = torch.cat((out_upconv2, out_conv1, disp3_up), 1)
         out_iconv2 = self.iconv2(concat2) #[8, 32, 224, 224] *
         if self.lpg_flag:
-            disp2, disp2_scaled = LPG_func(out_iconv2, self.reduc2x2, self.lpg2x2, self.max_depth)
+            disp2, disp2_scaled, disp2_scaled_ds = LPG_func(out_iconv2, self.reduc2x2, self.lpg2x2, self.max_depth, 1/2)
         else:
-            disp2 = self.alpha * self.predict_disp2(out_iconv2) + self.beta
+            disp2 = self.alpha * self.predict_disp2(out_iconv2) + self.beta #[8, 1, 224, 224]
+            disp2_scaled_ds =disp2
 
         out_upconv1 = crop_like(self.upconv1(out_iconv2), x)
-        disp2_up = crop_like(F.interpolate(disp2, scale_factor=2, mode='bilinear', align_corners=False), x)
+        disp2_up = crop_like(F.interpolate(disp2_scaled_ds, scale_factor=2, mode='bilinear', align_corners=False), x)
         concat1 = torch.cat((out_upconv1, disp2_up), 1)
         out_iconv1 = self.iconv1(concat1) #[8, 16, 448, 448] **
+        
         if self.lpg_flag:
-            reduc1x1 = self.reduc1x1(out_iconv1)
-            concat1 = torch.cat([reduc1x1, depth_2x2_scaled, depth_4x4_scaled, depth_8x8_scaled], dim=1)
+            reduc1x1 = self.reduc1x1(out_iconv1) #[8, 1, 448, 448]
+            concat1 = torch.cat([reduc1x1, disp2_scaled, disp3_scaled, disp4_scaled], dim=1) #[8, 4, 448, 448]
             iconv1_lpg = self.conv1_lpg(concat1)
             disp1 = self.max_depth * self.get_depth(iconv1_lpg)
         else:
             disp1 = self.alpha * self.predict_disp1(out_iconv1) + self.beta
-
         if self.training:
             return disp1, disp2, disp3, disp4
         else:
