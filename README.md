@@ -10,12 +10,12 @@ TODO:
 
 - [x] Overall pipeline - AK
 - [x] DispNet - AK
-- [] PoseNet - AB
+- [ ] PoseNet - AB
 - [x] VNL Loss - AK
 - [x] LPG constraint - AK
-- [] Photometric Reconstruction - AB
-- [] Height & uprightness Loss
-- [] Planar consistency loss
-- [] Validation 
-- [] Accuracy Metrics
-- [] AR objects
+- [ ] Photometric Reconstruction - AB
+- [ ] Height & uprightness Loss
+- [ ] Planar consistency loss
+- [ ] Validation 
+- [ ] Accuracy Metrics
+- [ ] AR objects
