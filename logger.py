@@ -1,7 +1,8 @@
 from blessings import Terminal
 import progressbar
 import sys
-
+import pdb
+st = pdb.set_trace
 
 class TermLogger(object):
     def __init__(self, n_epochs, train_size, valid_size):
@@ -75,6 +76,7 @@ class AverageMeter(object):
         self.count = 0
 
     def update(self, val, n=1):
+        # st()
         if not isinstance(val, list):
             val = [val]
         assert(len(val) == self.meters)

@@ -48,7 +48,6 @@ class DispNet(nn.Module):
         self.beta = beta
         self.lpg_flag = lpg_flag
         self.max_depth = max_depth
-        self.num_features = num_features
 
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
         self.conv1 = downsample_conv(3,              conv_planes[0], kernel_size=7)

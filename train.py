@@ -26,7 +26,7 @@ torch.backends.cudnn.deterministic = True
 best_error = -1
 n_iter = 0
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-img_shape = (3, 480, 640) #TODO: img shape change ot 448,448 or soemthing
+# img_shape = (3, 480, 640) #TODO: img shape change ot 448,448 or soemthing
 debug = False 
 
 args = utils.parse_command()
@@ -154,18 +154,19 @@ def validate (args, val_loader, model, epoch, logger, tb_writer):
     data_time = AverageMeter()
     log_output = 1 > 0
     #TODO complete it
-    depth_metric_names = ['abs_rel', 'sq_rel', 'rmse', 'logmae', 'rmse_log', 'rmse_log10', 'log10', 'a1', 'a2', 'a3', 'rmse_mean_gt_depth']
+    depth_metric_names = ['abs_diff', 'abs_rel', 'sq_rel', 'a1', 'a2', 'a3']
     depth_errors = AverageMeter(i=len(depth_metric_names))
     #TODO pose
     model.eval()
     end = time.time()
     logger.valid_bar.update(0)
-    for i, (img, depth) in enumerate(val_loader):
+    for i, (img, gt_depth) in enumerate(val_loader):
         img = img.to(device)
-        depth = depth.to(device)
+        gt_depth = gt_depth.to(device)
         # compute output
-        output_disp = model(img, depth, False, log_output, tb_writer, n_iter, True, mode ='val')
-        output_depth = 1/output_disp[:, 0]
+        # st()
+        output_disp = model(img, gt_depth, False, log_output, tb_writer, n_iter, True, mode ='val')
+        output_depth = 1/output_disp[0]
         # if log_outputs and i < sample_nb_to_log:
         #     if epoch == 0:
         #         tb_writer.add_image('val Input/{}'.format(i), tensor2array(tgt_img[0]), 0)
@@ -185,15 +186,15 @@ def validate (args, val_loader, model, epoch, logger, tb_writer):
         #     tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
         #                         tensor2array(output_depth[0], max_value=None),
         #                         epoch)
-        errors.update(compute_depth_metrics(depth, output_depth))
+        depth_errors.update(compute_depth_metrics(output_depth, gt_depth))
 
         batch_time.update(time.time() - end)
         end = time.time()
         logger.valid_bar.update(i+1)
         if i % args.print_freq == 0:
-            logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, errors.val[0], errors.avg[0]))
+            logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, depth_errors.val[0], depth_errors.avg[0]))
     logger.valid_bar.update(len(val_loader))
-    return errors.avg, error_names
+    return depth_errors.avg, depth_errors
 
 
     

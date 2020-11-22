@@ -15,56 +15,38 @@ import shutil
 import numpy as np
 import matplotlib.pyplot as plt
 from PIL import Image
-
+import pdb
+st = pdb.set_trace
 cmap = plt.cm.viridis
 cudnn.benchmark = True
 
-def compute_depth_metrics(all_predicted, all_gt):
-    #https://github.com/mbaradad/im2pcl/blob/master/losses.py
-    if len(all_predicted.shape) != 2:
-    raise Exception('Evaluation should be performed per sample!')
-    assert all_predicted.shape == all_gt.shape
-    assert type(all_predicted) == np.ndarray
+@torch.no_grad()
+def compute_depth_metrics(gt, pred, crop=False):
+    abs_diff, abs_rel, sq_rel, a1, a2, a3 = 0,0,0,0,0,0
+    batch_size = gt.shape[0]
 
-    thresh = np.maximum((gt / pred), (pred / gt))
-    a1 = (thresh < 1.25).mean()
-    a2 = (thresh < 1.25 ** 2).mean()
-    a3 = (thresh < 1.25 ** 3).mean()
+    for current_gt, current_pred in zip(gt, pred):
+        valid = (current_gt > 0) & (current_gt < 80)
+        if crop:
+            valid = valid & crop_mask
 
-    rmse = (gt - pred) ** 2
-    rmse = np.sqrt(rmse.mean())
+        valid_gt = current_gt[valid]
+        valid_pred = current_pred[valid].clamp(1e-3, 80)
 
-    rmse_log = (np.log(gt) - np.log(pred)) ** 2
-    rmse_log = np.sqrt(rmse_log.mean())
+        valid_pred = valid_pred * torch.median(valid_gt)/torch.median(valid_pred)
 
-    rmse_log10 = (np.log10(gt) - np.log10(pred)) ** 2
-    rmse_log10 = np.sqrt(rmse_log10.mean())
+        thresh = torch.max((valid_gt / valid_pred), (valid_pred / valid_gt))
+        a1 += (thresh < 1.25).float().mean()
+        a2 += (thresh < 1.25 ** 2).float().mean()
+        a3 += (thresh < 1.25 ** 3).float().mean()
 
-    log10 = float(np.abs(np.log10(gt) - np.log10(pred)).mean())
-    logmae = float(np.abs(np.log(gt) - np.log(pred)).mean())
+        abs_diff += torch.mean(torch.abs(valid_gt - valid_pred))
+        abs_rel += torch.mean(torch.abs(valid_gt - valid_pred) / valid_gt)
 
-    abs_rel = np.mean(np.abs(gt - pred) / gt)
+        sq_rel += torch.mean(((valid_gt - valid_pred)**2) / valid_gt)
 
-    sq_rel = np.mean(((gt - pred) ** 2) / gt)
+    return [metric.item() / batch_size for metric in [abs_diff, abs_rel, sq_rel, a1, a2, a3]]
 
-    results = dict()
-    results['abs_rel'] = abs_rel
-    results['sq_rel'] = sq_rel
-    results['rmse'] = rmse
-    results['rmse_log'] = rmse_log
-    results['rmse_log10'] = rmse_log10
-    results['log10'] = log10
-    results['logmae'] = logmae
-    results['a1'] = a1
-    results['a2'] = a2
-    results['a3'] = a3
-
-    meand_depth = pred*0 + gt.mean()
-    rmse_mean_depth = (gt - meand_depth) ** 2
-    rmse_mean_depth = np.sqrt(rmse_mean_depth.mean())
-    results['rmse_mean_gt_depth'] = rmse_mean_depth
-
-    return results
 
 def create_data_loaders(args):
     print("=> creating data loaders ...")
