@@ -19,3 +19,4 @@ TODO:
 - [x] Validation - AK
 - [x] Accuracy Metrics - AK
 - [ ] AR objects
+- [ ] Visualize Tensorboard 
