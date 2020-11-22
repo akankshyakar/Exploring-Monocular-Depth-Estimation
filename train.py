@@ -114,7 +114,9 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
     end = time.time()
     logger.train_bar.update(0)
   
-    for i, (img, depth) in enumerate(train_loader):
+    for i, (img, ref_imgs, depth) in enumerate(train_loader):
+        print(img.shape)
+        print(depth.shape)
         # st()
         log_losses = i > 0 and n_iter % args.print_freq == 0
         log_output = args.training_output_freq > 0 and n_iter % args.training_output_freq == 0
@@ -131,6 +133,8 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
 
         # compute gradient and do step
         optimizer.zero_grad()
+        # import pdb; pdb.set_trace()
+        # print("train 124 loss", loss)
         loss.backward()
         optimizer.step()
         scheduler.step()

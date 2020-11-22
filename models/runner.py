@@ -25,7 +25,7 @@ class Runner(nn.Module):
         self.hidden_dim = 128
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.disp_net = models.DispNet().to(self.device)
-        self.pose_net = models.PoseNet(nb_ref_imgs=args.sequence_length-1,output_exp=True).to(self.device)
+        self.pose_net = models.PoseNet(nb_ref_imgs=args.sequence_length-1,output_exp=False).to(self.device)
 
         if args.pretrained_exp_pose:
             print("=> using pre-trained weights for explainabilty and pose net")
@@ -42,7 +42,7 @@ class Runner(nn.Module):
             self.disp_net.init_weights()
         self.args = args
         self.l1_loss = nn.L1Loss()
-        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
+        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(480,640))
 
     
     def forward(self, img, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train'):
@@ -69,6 +69,7 @@ class Runner(nn.Module):
         #### code for loss calculation
         # loss = self.l1_loss(depth, tgt_img)
         loss = self.virtual_normal_loss(depth[0], gt_depth)
+        appearance_loss, warped_imgs, diff_maps = photometric_reconstruction_loss()
         # loss['a'] = 0
         # loss['b'] = 0#SECONDARY LOSS
         ###############################################

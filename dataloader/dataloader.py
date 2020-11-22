@@ -4,8 +4,25 @@ import numpy as np
 import torch.utils.data as data
 import h5py
 import dataloader.transforms as transforms
+from path import Path
+import random
+from dataloader import custom_transforms
 
 IMG_EXTENSIONS = ['.h5',]
+
+def get_intrinsics():
+    fx_rgb = 5.1885790117450188e+02
+    fy_rgb = 5.1946961112127485e+02
+    cx_rgb = 3.2558244941119034e+02
+    cy_rgb = 2.5373616633400465e+02
+
+    return np.array([
+        [fx_rgb, 0, cx_rgb],
+        [0, fy_rgb, cy_rgb],
+        [0, 0, 1],
+    ])
+
+# intrinsics_global = get_intrinsics()
 
 def is_image_file(filename):
     return any(filename.endswith(extension) for extension in IMG_EXTENSIONS)
@@ -31,12 +48,15 @@ def make_dataset(dir, class_to_idx):
                     images.append(item)
     return images
 
-def h5_loader(path):
+def h5_loader(path, image_only=False):
     h5f = h5py.File(path, "r")
     rgb = np.array(h5f['rgb'])
     rgb = np.transpose(rgb, (1, 2, 0))
     depth = np.array(h5f['depth'])
-    return rgb, depth
+    if not image_only:
+        return rgb, depth
+    else:
+        return rgb
 
 # def rgb2grayscale(rgb):
 #     return rgb[:,:,0] * 0.2989 + rgb[:,:,1] * 0.587 + rgb[:,:,2] * 0.114
@@ -47,7 +67,7 @@ class MyDataloader(data.Dataset):
     modality_names = ['rgb', 'rgbd', 'd'] # , 'g', 'gd'
     color_jitter = transforms.ColorJitter(0.4, 0.4, 0.4)
 
-    def __init__(self, root, type, sparsifier=None, modality='rgb', loader=h5_loader):
+    def __init__(self, root, type, sparsifier=None, modality='rgb', loader=h5_loader, sequence_length=3):
         classes, class_to_idx = find_classes(root)
         imgs = make_dataset(root, class_to_idx)
         assert len(imgs)>0, "Found 0 images in subfolders of: " + root + "\n"
@@ -56,10 +76,21 @@ class MyDataloader(data.Dataset):
         self.imgs = imgs
         self.classes = classes
         self.class_to_idx = class_to_idx
+
+        normalize = custom_transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                                        std=[0.5, 0.5, 0.5])
+        train_transform = custom_transforms.Compose([
+            custom_transforms.RandomHorizontalFlip(),
+            custom_transforms.RandomScaleCrop(),
+            custom_transforms.ArrayToTensor(),
+            normalize
+        ])
+        valid_transform = custom_transforms.Compose([custom_transforms.ArrayToTensor(), normalize])
+        
         if type == 'train':
-            self.transform = self.train_transform
+            self.transform = train_transform
         elif type == 'val':
-            self.transform = self.val_transform
+            self.transform = valid_transform
         else:
             raise (RuntimeError("Invalid dataset type: " + type + "\n"
                                 "Supported dataset types are: train, val"))
@@ -70,8 +101,42 @@ class MyDataloader(data.Dataset):
                                 "Supported dataset types are: " + ''.join(self.modality_names)
         self.modality = modality
 
+        self.scenes = os.listdir(self.root)
+        self.scenes = [os.path.join(self.root, scene) for scene in self.scenes]
+        self.scenes = [Path(scene) for scene in self.scenes]
+        self.crawl_folders(sequence_length)
+        self.get_intrinsics = get_intrinsics
+        # import pdb; pdb.set_trace()
+
+
+    def crawl_folders(self, sequence_length):
+        sequence_set = []
+        demi_length = (sequence_length-1)//2
+        shifts = list(range(-demi_length, demi_length + 1))
+        shifts.pop(demi_length)
+        for scene in self.scenes:
+            # Intrinsics added in train function itself
+            # intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
+            intrinsics = get_intrinsics()
+            imgs = sorted(scene.files('*.h5'))
+            if len(imgs) < sequence_length:
+                continue
+            for i in range(demi_length, len(imgs)-demi_length):
+                sample = {'intrinsics': intrinsics, 'tgt': imgs[i], 'ref_imgs': []}
+                # sample = {'tgt': imgs[i], 'ref_imgs': []}
+                for j in shifts:
+                    sample['ref_imgs'].append(imgs[i+j])
+                sequence_set.append(sample)
+        random.shuffle(sequence_set)
+        self.samples = sequence_set
+        # import pdb; pdb.set_trace()
+
+
     def train_transform(self, rgb, depth):
         raise (RuntimeError("train_transform() is not implemented. "))
+
+    # def train_transform(self, rgb, ref_imgs, depth):
+    #     raise (RuntimeError("train_transform() is not implemented. "))
 
     def val_transform(rgb, depth):
         raise (RuntimeError("val_transform() is not implemented."))
@@ -98,19 +163,41 @@ class MyDataloader(data.Dataset):
         Returns:
             tuple: (rgb, depth) the raw data.
         """
-        path, target = self.imgs[index]
-        rgb, depth = self.loader(path)
-        return rgb, depth
+        # path, target = self.imgs[index]
+        # rgb, depth = self.loader(path)
+        # # import pdb; pdb.set_trace()
+        # return rgb, depth
+        # sample = self.samples[index]
+        # rgb, depth = self.loader(sample['tgt'])
+        # ref_imgs = [self.loader(ref_img, image_only=True) for ref_img in sample['ref_imgs']]
+        # return rgb, ref_imgs, depth
+
 
     def __getitem__(self, index):
-        rgb, depth = self.__getraw__(index)
-        
-        #print('{:04d}  min={:f}  max={:f}  shape='.format(index, np.amin(depth), np.amax(depth)) + str(depth.shape))
+        # rgb, depth = self.__getraw__(index)
+        # rgb, ref_imgs, depth = self.__getraw__(index)
+        sample = self.samples[index]
+        rgb, depth = self.loader(sample['tgt'])
+        ref_imgs = [self.loader(ref_img, image_only=True) for ref_img in sample['ref_imgs']]
         
         if self.transform is not None:
-            rgb_np, depth_np = self.transform(rgb, depth)
+            imgs, depth_tensor, intrinsics = self.transform([rgb] + ref_imgs, depth, np.copy(sample['intrinsics']))
+            rgb_tensor = imgs[0]
+            ref_imgs_tensor = imgs[1:]
         else:
+            # intrinsics = np.copy(sample['intrinsics'])
             raise(RuntimeError("transform not defined"))
+
+        # print("depth_tensor.shape", depth_tensor.shape)
+
+
+        return rgb_tensor, ref_imgs_tensor, depth_tensor
+
+        # if self.transform is not None:
+        #     rgb_np, depth_np = self.transform(rgb, depth)
+
+        # else:
+        #     raise(RuntimeError("transform not defined"))
 
         #print('{:04d}  min={:f}  max={:f}  shape='.format(index, np.amin(depth_np), np.amax(depth_np)) + str(depth_np.shape))
 
@@ -118,22 +205,22 @@ class MyDataloader(data.Dataset):
         # rgb_tensor = normalize_rgb(rgb_tensor)
         # rgb_np = normalize_np(rgb_np)
 
-        if self.modality == 'rgb':
-            input_np = rgb_np
-        elif self.modality == 'rgbd':
-            input_np = self.create_rgbd(rgb_np, depth_np)
-        elif self.modality == 'd':
-            input_np = self.create_sparse_depth(rgb_np, depth_np)
+        # if self.modality == 'rgb':
+        #     input_np = rgb_np
+        # elif self.modality == 'rgbd':
+        #     input_np = self.create_rgbd(rgb_np, depth_np)
+        # elif self.modality == 'd':
+        #     input_np = self.create_sparse_depth(rgb_np, depth_np)
 
-        input_tensor = to_tensor(input_np)
-        while input_tensor.dim() < 3:
-            input_tensor = input_tensor.unsqueeze(0)
-        depth_tensor = to_tensor(depth_np)
-        #print('{:04d} '.format(index) + str(depth_tensor.shape))
-        depth_tensor = depth_tensor.unsqueeze(0)
-        #print('{:04d} '.format(index) + str(depth_tensor.shape))
+        # input_tensor = to_tensor(input_np)
+        # while input_tensor.dim() < 3:
+        #     input_tensor = input_tensor.unsqueeze(0)
+        # depth_tensor = to_tensor(depth_np)
+        # #print('{:04d} '.format(index) + str(depth_tensor.shape))
+        # depth_tensor = depth_tensor.unsqueeze(0)
+        # #print('{:04d} '.format(index) + str(depth_tensor.shape))
 
-        return input_tensor, depth_tensor
+        # return input_tensor, depth_tensor
 
     def __len__(self):
         return len(self.imgs)
