@@ -26,7 +26,7 @@ torch.backends.cudnn.deterministic = True
 best_error = -1
 n_iter = 0
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-# img_shape = (3, 480, 640) #TODO: img shape change ot 448,448 or soemthing
+img_shape = (3, 448, 448) #TODO: img shape change ot 448,448 or soemthing
 debug = False 
 
 args = utils.parse_command()
@@ -114,9 +114,7 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
     end = time.time()
     logger.train_bar.update(0)
   
-    for i, (img, ref_imgs, depth) in enumerate(train_loader):
-        print(img.shape)
-        print(depth.shape)
+    for i, (img, ref_imgs, depth, intrinsics) in enumerate(train_loader):
         # st()
         log_losses = i > 0 and n_iter % args.print_freq == 0
         log_output = args.training_output_freq > 0 and n_iter % args.training_output_freq == 0
@@ -125,9 +123,11 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
         data_time.update(time.time() - end)
         depth = depth.to(device)
         img = img.to(device)
+        ref_imgs = [img.to(device) for img in ref_imgs]
+        intrinsics = intrinsics.to(device)
 
         # st()
-        loss = model(img, depth, log_losses, log_output, tb_writer, n_iter, False, mode ='train')
+        loss = model(img, ref_imgs, intrinsics, depth, log_losses, log_output, tb_writer, n_iter, False, mode ='train')
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
 

@@ -1,3 +1,3 @@
 from .DispNet import DispNet
-from .PoseNet import PoseNet
+from .PoseExpNet import PoseExpNet
 from .runner import Runner

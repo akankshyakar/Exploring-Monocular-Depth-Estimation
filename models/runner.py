@@ -13,6 +13,7 @@ import pdb
 st = pdb.set_trace
 import matplotlib.pyplot as plt
 from loss.VNL import VNL_Loss
+from loss_functions import photometric_reconstruction_loss
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
@@ -25,7 +26,7 @@ class Runner(nn.Module):
         self.hidden_dim = 128
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.disp_net = models.DispNet().to(self.device)
-        self.pose_net = models.PoseNet(nb_ref_imgs=args.sequence_length-1,output_exp=False).to(self.device)
+        self.pose_net = models.PoseExpNet(nb_ref_imgs=2,output_exp=False).to(self.device)
 
         if args.pretrained_exp_pose:
             print("=> using pre-trained weights for explainabilty and pose net")
@@ -42,13 +43,14 @@ class Runner(nn.Module):
             self.disp_net.init_weights()
         self.args = args
         self.l1_loss = nn.L1Loss()
-        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(480,640))
+        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
 
     
-    def forward(self, img, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train'):
+    def forward(self, img, ref_imgs, intrinsics, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train'):
 
         # compute output
         # w1, w2, w3 ,w4 = 1,1,1,1 #TODO set weights for various losses here
+        w1, w2, w3 ,w4 = 1,1,1,1 #TODO set weights for various losses here
         # st()
         disparities = self.disp_net(img) # 4 [8, 1, 448, 448]
         # disparities =[1,1]
@@ -59,7 +61,7 @@ class Runner(nn.Module):
         if ret_depth: #inference call
             return depth
 
-        # _, pose = self.pose_exp_net(depth[0], rgbs_from_first, self.__p, self.__u)	# pose = [seq_len-2, batch , 6]
+        _, pose = self.pose_net(img, ref_imgs)	# pose = [seq_len-2, batch , 6]
         # st()
 
         ###############################################
@@ -68,8 +70,9 @@ class Runner(nn.Module):
 
         #### code for loss calculation
         # loss = self.l1_loss(depth, tgt_img)
-        loss = self.virtual_normal_loss(depth[0], gt_depth)
-        appearance_loss, warped_imgs, diff_maps = photometric_reconstruction_loss()
+        loss = w1* self.virtual_normal_loss(depth[0], gt_depth)
+        appearance_loss, warped_imgs, diff_maps = photometric_reconstruction_loss(img, ref_imgs, intrinsics, depth[0], pose)
+        loss += w2 * appearance_loss
         # loss['a'] = 0
         # loss['b'] = 0#SECONDARY LOSS
         ###############################################

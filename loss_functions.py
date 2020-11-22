@@ -21,20 +21,20 @@ def structured_sim_loss(pred_img, gt_img) :
     ssim_loss_val = ssim_loss(pred_img, gt_img)
     return ssim_loss_val
 
-def photometric_reconstruction_loss(tgt_img, ref_imgs,
-                                    depth, explainability_mask, pose, intrinsics=None,
+def photometric_reconstruction_loss(tgt_img, ref_imgs, intrinsics,
+                                    depth, pose, explainability_mask=None,
                                     rotation_mode='euler', padding_mode='zeros'):
-    def one_scale(depth, explainability_mask):
-        assert(explainability_mask is None or depth.size()[2:] == explainability_mask.size()[2:])
+    def one_scale(depth, explainability_mask=None):
+        # assert(explainability_mask is None or depth.size()[2:] == explainability_mask.size()[2:])
         assert(pose.size(1) == len(ref_imgs))
 
         reconstruction_loss = 0
         b, _, h, w = depth.size()
         downscale = tgt_img.size(2)/h
 
-        if not intrinsics:
-            intrinsics = intrinsics_global
-        print("intrinsics", intrinsics)
+        # if not intrinsics:
+        #     intrinsics = intrinsics_global
+        # print("intrinsics", intrinsics)
 
         tgt_img_scaled = F.interpolate(tgt_img, (h, w), mode='area')
         ref_imgs_scaled = [F.interpolate(ref_img, (h, w), mode='area') for ref_img in ref_imgs]
@@ -69,8 +69,9 @@ def photometric_reconstruction_loss(tgt_img, ref_imgs,
         depth = [depth]
 
     total_loss = 0
-    for d, mask in zip(depth, explainability_mask):
-        loss, warped, diff = one_scale(d, mask)
+    # for d, mask in zip(depth, explainability_mask):
+    for d in depth:
+        loss, warped, diff = one_scale(d)
         total_loss += loss
         warped_results.append(warped)
         diff_results.append(diff)

@@ -1,5 +1,6 @@
 import os
 import os.path
+import torch
 import numpy as np
 import torch.utils.data as data
 import h5py
@@ -20,7 +21,7 @@ def get_intrinsics():
         [fx_rgb, 0, cx_rgb],
         [0, fy_rgb, cy_rgb],
         [0, 0, 1],
-    ])
+    ], dtype=float)
 
 # intrinsics_global = get_intrinsics()
 
@@ -118,6 +119,7 @@ class MyDataloader(data.Dataset):
             # Intrinsics added in train function itself
             # intrinsics = np.genfromtxt(scene/'cam.txt').astype(np.float32).reshape((3, 3))
             intrinsics = get_intrinsics()
+            intrinsics = torch.tensor(intrinsics, dtype=torch.float32)
             imgs = sorted(scene.files('*.h5'))
             if len(imgs) < sequence_length:
                 continue
@@ -188,10 +190,8 @@ class MyDataloader(data.Dataset):
             # intrinsics = np.copy(sample['intrinsics'])
             raise(RuntimeError("transform not defined"))
 
-        # print("depth_tensor.shape", depth_tensor.shape)
 
-
-        return rgb_tensor, ref_imgs_tensor, depth_tensor
+        return rgb_tensor, ref_imgs_tensor, depth_tensor.unsqueeze(0), intrinsics
 
         # if self.transform is not None:
         #     rgb_np, depth_np = self.transform(rgb, depth)
@@ -223,7 +223,7 @@ class MyDataloader(data.Dataset):
         # return input_tensor, depth_tensor
 
     def __len__(self):
-        return len(self.imgs)
+        return len(self.samples)
 
     # def __get_all_item__(self, index):
     #     """
