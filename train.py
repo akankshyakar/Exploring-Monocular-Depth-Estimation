@@ -86,7 +86,7 @@ def main():
             
             error_string = ', '.join('{} : {:.3f}'.format(name, error) for name, error in zip(error_names, errors))
             logger.valid_writer.write(' * Avg {}'.format(error_string))
-
+            
             for error, name in zip(errors, error_names):
                 tb_writer.add_scalar(name, error, epoch)
 
@@ -194,7 +194,7 @@ def validate (args, val_loader, model, epoch, logger, tb_writer):
         if i % args.print_freq == 0:
             logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, depth_errors.val[0], depth_errors.avg[0]))
     logger.valid_bar.update(len(val_loader))
-    return depth_errors.avg, depth_errors
+    return depth_errors.avg, depth_metric_names
 
 
     

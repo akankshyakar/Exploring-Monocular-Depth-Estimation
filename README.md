@@ -16,6 +16,6 @@ TODO:
 - [ ] Photometric Reconstruction - AB
 - [ ] Height & uprightness Loss
 - [ ] Planar consistency loss
-- [ ] Validation 
-- [ ] Accuracy Metrics
+- [x] Validation - AK
+- [x] Accuracy Metrics - AK
 - [ ] AR objects
