@@ -13,7 +13,7 @@ import pdb
 st = pdb.set_trace
 import matplotlib.pyplot as plt
 from loss.VNL import VNL_Loss
-from loss_functions import photometric_reconstruction_loss
+from loss.PhotoMetric import PhotoMetricLoss
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
@@ -44,7 +44,7 @@ class Runner(nn.Module):
         self.args = args
         self.l1_loss = nn.L1Loss()
         self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
-
+        self.photometric_loss = PhotoMetricLoss()
     
     def forward(self, img, ref_imgs, intrinsics, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train', args=None):
 
@@ -63,32 +63,26 @@ class Runner(nn.Module):
         if type(disparities) not in [tuple, list]:
             disparities = [disparities]
         depth = [1/disp for disp in disparities]
-        # depth = torch.ones(tgt_img.shape).to(device)
+        
         if ret_depth: #inference call
             return depth
 
         _, pose = self.pose_net(img, ref_imgs)	# pose = [seq_len-2, batch , 6]
-        # st()
-
-        ###############################################
-        # Calculating losses
-        ###############################################
 
         #### code for loss calculation
         if w_l1 > 0:
             l1_loss = self.l1_loss(depth[0], gt_depth)
             loss = w_l1 * l1_loss
+        
         if w_vnl > 0:
             vnl_loss = self.virtual_normal_loss(depth[0], gt_depth)
             loss = w_vnl * vnl_loss
+        
         if w_photometric > 0:
-            photometric_loss, warped_imgs, diff_maps = photometric_reconstruction_loss(img, ref_imgs, intrinsics, depth[0], pose)
+            photometric_loss, warped_imgs, diff_maps = self.photometric_loss(img, ref_imgs, intrinsics, depth[0], pose)
             loss += w_photometric * photometric_loss
-        # loss['a'] = 0
-        # loss['b'] = 0#SECONDARY LOSS
-        ###############################################
+        
         # Logging
-        ###############################################
         if log_losses:
             # print("Logging Scalars")
             if w_l1 > 0:
@@ -97,31 +91,17 @@ class Runner(nn.Module):
                 tb_writer.add_scalar(mode+'/vnl_loss', vnl_loss.item(), n_iter)
             if w_photometric > 0:
                 tb_writer.add_scalar(mode+'/photometric_loss', photometric_loss.item(), n_iter)
-            # if w1 > 0:
-            #     tb_writer.add_scalar(mode+'/explanability_loss', loss_2.item(), n_iter)
-            #     tb_writer.add_scalar(mode+'/appearance_loss', ap_loss.item(), n_iter)
-            #     tb_writer.add_scalar(mode+'/SSIM_loss', loss_4.item(), n_iter)
-            # if w2 > 0:
-            #     tb_writer.add_scalar(mode+'/disparity_smoothness_loss', depth_reg_loss.item(), n_iter)
-            # if w4 > 0:
-            #     tb_writer.add_scalar(mode+'/GAN_loss', gan_loss.item(), n_iter)
-            # if w3 > 0:
-            #     tb_writer.add_scalar(mode+'/traj_loss', traj_loss.item(), n_iter)
             tb_writer.add_scalar(mode+'/total_loss', loss.item(), n_iter)
 
-        # if log_output: 
-        #     # print("Logging Images")
-        #     tb_writer.add_image(mode+'/train_input', tensor2array(tgt_img[0]), n_iter)
-        #     flow_to_show=vis_optflow(optical_flow_imgs[0][0].permute(1,2,0).cpu().numpy())
-        #     tb_writer.add_image(mode+'/train_optical_flow', flow_to_show, n_iter)
-        #     # st()
-        #     output_depth = depth[0][-1,0,:,:,:]
-        #     tb_writer.add_image(mode+'/train_depth', tensor2array(output_depth[0], max_value=None), n_iter)
-        #     output_disp = 1.0/output_depth
-        #     tb_writer.add_image(mode+'/train_disp', tensor2array(output_disp[0], max_value=None, colormap='magma'), n_iter)
-        #     tb_writer.add_image(mode+'/train_warped', tensor2array(warped[0][-1][0,:,:,:]), n_iter)
-        #     tb_writer.add_image(mode+'/train_diff', tensor2array(diff[0][-1][0,:,:,:]*0.5), n_iter)
-        #     mask_to_show = tensor2array(explainability_mask[0][0][0], max_value=1, colormap='bone')
-        #     tb_writer.add_image(mode+'/train_exp_mask', mask_to_show, n_iter)
+        if log_output: 
+            # print("Logging Images")
+            tb_writer.add_image(mode+'/train_input', tensor2array(img[0]), n_iter)
+            output_depth = depth[0][-1,0,:,:,:]
+            tb_writer.add_image(mode+'/train_depth', tensor2array(output_depth[0], max_value=None), n_iter)
+            output_disp = 1.0/output_depth
+            tb_writer.add_image(mode+'/train_disp', tensor2array(output_disp[0], max_value=None, colormap='magma'), n_iter)
+            tb_writer.add_image(mode+'/train_warped', tensor2array(warped[0][-1][0,:,:,:]), n_iter)
+            tb_writer.add_image(mode+'/train_diff', tensor2array(diff_maps[0][-1][0,:,:,:]*0.5), n_iter)
+
 
         return loss
