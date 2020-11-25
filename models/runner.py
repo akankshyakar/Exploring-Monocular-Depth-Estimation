@@ -51,11 +51,11 @@ class Runner(nn.Module):
         # compute output
 
         w_l1, w_vnl, w_photometric = 1,1,1 #TODO set weights for various losses here, override in args
-        if args.l1_loss:
+        if not args.l1_loss:
             w_l1 = 0
-        if args.vnl_loss:
+        if not args.vnl_loss:
             w_vnl = 0
-        if args.photometric_loss:
+        if not args.photometric_loss:
             w_photometric = 0
         # st()
         disparities = self.disp_net(img) # 4 [8, 1, 448, 448]
@@ -75,29 +75,39 @@ class Runner(nn.Module):
         ###############################################
 
         #### code for loss calculation
-        loss = w_l1 * self.l1_loss(depth, gt_depth)
-        loss = w_vnl * self.virtual_normal_loss(depth[0], gt_depth)
-        appearance_loss, warped_imgs, diff_maps = photometric_reconstruction_loss(img, ref_imgs, intrinsics, depth[0], pose)
-        loss += w_photometric * appearance_loss
+        if w_l1 > 0:
+            l1_loss = self.l1_loss(depth[0], gt_depth)
+            loss = w_l1 * l1_loss
+        if w_vnl > 0:
+            vnl_loss = self.virtual_normal_loss(depth[0], gt_depth)
+            loss = w_vnl * vnl_loss
+        if w_photometric > 0:
+            photometric_loss, warped_imgs, diff_maps = photometric_reconstruction_loss(img, ref_imgs, intrinsics, depth[0], pose)
+            loss += w_photometric * photometric_loss
         # loss['a'] = 0
         # loss['b'] = 0#SECONDARY LOSS
         ###############################################
         # Logging
         ###############################################
-        # if log_losses:
-        #     # print("Logging Scalars")
-        #     tb_writer.add_scalar(mode+'/photometric_loss', loss_1.item(), n_iter)
-        #     if w1 > 0:
-        #         tb_writer.add_scalar(mode+'/explanability_loss', loss_2.item(), n_iter)
-        #         tb_writer.add_scalar(mode+'/appearance_loss', ap_loss.item(), n_iter)
-        #         tb_writer.add_scalar(mode+'/SSIM_loss', loss_4.item(), n_iter)
-        #     if w2 > 0:
-        #         tb_writer.add_scalar(mode+'/disparity_smoothness_loss', depth_reg_loss.item(), n_iter)
-        #     if w4 > 0:
-        #         tb_writer.add_scalar(mode+'/GAN_loss', gan_loss.item(), n_iter)
-        #     if w3 > 0:
-        #         tb_writer.add_scalar(mode+'/traj_loss', traj_loss.item(), n_iter)
-        #     tb_writer.add_scalar(mode+'/total_loss', loss.item(), n_iter)
+        if log_losses:
+            # print("Logging Scalars")
+            if w_l1 > 0:
+                tb_writer.add_scalar(mode+'/l1_loss', l1_loss.item(), n_iter)
+            if w_vnl > 0:
+                tb_writer.add_scalar(mode+'/vnl_loss', vnl_loss.item(), n_iter)
+            if w_photometric > 0:
+                tb_writer.add_scalar(mode+'/photometric_loss', photometric_loss.item(), n_iter)
+            # if w1 > 0:
+            #     tb_writer.add_scalar(mode+'/explanability_loss', loss_2.item(), n_iter)
+            #     tb_writer.add_scalar(mode+'/appearance_loss', ap_loss.item(), n_iter)
+            #     tb_writer.add_scalar(mode+'/SSIM_loss', loss_4.item(), n_iter)
+            # if w2 > 0:
+            #     tb_writer.add_scalar(mode+'/disparity_smoothness_loss', depth_reg_loss.item(), n_iter)
+            # if w4 > 0:
+            #     tb_writer.add_scalar(mode+'/GAN_loss', gan_loss.item(), n_iter)
+            # if w3 > 0:
+            #     tb_writer.add_scalar(mode+'/traj_loss', traj_loss.item(), n_iter)
+            tb_writer.add_scalar(mode+'/total_loss', loss.item(), n_iter)
 
         # if log_output: 
         #     # print("Logging Images")
