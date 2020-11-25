@@ -31,7 +31,8 @@ args = utils.parse_command()
 
 def main():
     global best_error, n_iter, device, scheduler
-
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+    st()
     print('=> will save everything to {}'.format(args.save_path))
     save_path = Path(','.join(args.save_path))
     save_path.makedirs_p()
@@ -75,7 +76,7 @@ def main():
 
             # evaluate on validation set
             logger.reset_valid_bar()
-            if epoch%1==0: # TODO: fix this 
+            if epoch%5==0: # TODO: fix this 
                 print("Starting Validation")
                 if debug:
                     st()

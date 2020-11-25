@@ -25,7 +25,7 @@ class Runner(nn.Module):
         super(Runner, self).__init__()
         self.hidden_dim = 128
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        self.disp_net = models.DispNet(lpg_flag = args.lpg, max_depth=args.max_depth).to(self.device)
+        self.disp_net = models.DispNet(lpg_flag = args.lpg, max_depth = args.max_depth).to(self.device)
         self.pose_net = models.PoseExpNet(nb_ref_imgs=2,output_exp=False).to(self.device)
 
         if args.pretrained_exp_pose:

@@ -86,7 +86,9 @@ def parse_command():
 
 
     import argparse
-    parser = argparse.ArgumentParser(description='SSemi-Supervised')
+    parser = argparse.ArgumentParser(description='Semi-Supervised')
+    parser.add_argument('--gpu_id', default='1', type=str,
+                    help='id(s) for CUDA_VISIBLE_DEVICES')
     parser.add_argument('--save-path', default='', type=str, metavar='PATH',
                         help='path to save things')
     parser.add_argument('--path', default='', type=str, metavar='PATH',
