@@ -116,7 +116,7 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
     for i, (img, ref_imgs, depth, intrinsics) in enumerate(train_loader):
         # st()
         log_losses = i > 0 and n_iter % args.print_freq == 0
-        log_output = args.training_output_freq > 0 and n_iter % args.training_output_freq == 0
+        log_output = True #args.training_output_freq > 0 and n_iter % args.training_output_freq == 0
 
         # measure data loading time
         data_time.update(time.time() - end)

@@ -14,6 +14,7 @@ st = pdb.set_trace
 import matplotlib.pyplot as plt
 from loss.VNL import VNL_Loss
 from loss.PhotoMetric import PhotoMetricLoss
+from utils import tensor2array
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
@@ -94,14 +95,13 @@ class Runner(nn.Module):
             tb_writer.add_scalar(mode+'/total_loss', loss.item(), n_iter)
 
         if log_output: 
-            # print("Logging Images")
+            print("Logging Training Images")
+            # st()
             tb_writer.add_image(mode+'/train_input', tensor2array(img[0]), n_iter)
-            output_depth = depth[0][-1,0,:,:,:]
-            tb_writer.add_image(mode+'/train_depth', tensor2array(output_depth[0], max_value=None), n_iter)
+            output_depth = depth[0][0,0,:,:]
+            tb_writer.add_image(mode+'/train_depth', tensor2array(output_depth, max_value=None), n_iter)
             output_disp = 1.0/output_depth
-            tb_writer.add_image(mode+'/train_disp', tensor2array(output_disp[0], max_value=None, colormap='magma'), n_iter)
-            tb_writer.add_image(mode+'/train_warped', tensor2array(warped[0][-1][0,:,:,:]), n_iter)
-            tb_writer.add_image(mode+'/train_diff', tensor2array(diff_maps[0][-1][0,:,:,:]*0.5), n_iter)
+            tb_writer.add_image(mode+'/train_disp', tensor2array(output_disp, max_value=None, colormap='magma'), n_iter)
 
 
         return loss
