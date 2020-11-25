@@ -46,19 +46,13 @@ class PhotoMetricLoss(nn.Module):
 
             reconstruction_loss += diff.abs().mean()
 
-            warped_imgs.append(ref_img_warped[0])
-            diff_maps.append(diff[0])
-
-        return reconstruction_loss, warped_imgs, diff_maps
+        return reconstruction_loss
 
     def forward(self, tgt_img, ref_imgs, intrinsics, depth, pose):
-        warped_results, diff_results = [], []
         if type(depth) not in [list, tuple]:
             depth = [depth]
         total_loss = 0
         for d in depth:
-            loss, warped, diff = self.one_scale(tgt_img, ref_imgs, intrinsics, d, pose )
+            loss = self.one_scale(tgt_img, ref_imgs, intrinsics, d, pose)
             total_loss += loss
-            warped_results.append(warped)
-            diff_results.append(diff)
-        return total_loss, warped_results, diff_results
+        return total_loss

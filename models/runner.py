@@ -20,13 +20,12 @@ torch.cuda.manual_seed_all(125)
 torch.backends.cudnn.deterministic = True
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
-# import numpy as np
 class Runner(nn.Module):
     def __init__(self, args):
         super(Runner, self).__init__()
         self.hidden_dim = 128
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
-        self.disp_net = models.DispNet().to(self.device)
+        self.disp_net = models.DispNet(lpg_flag = args.lpg, max_depth=args.max_depth).to(self.device)
         self.pose_net = models.PoseExpNet(nb_ref_imgs=2,output_exp=False).to(self.device)
 
         if args.pretrained_exp_pose:
@@ -46,21 +45,13 @@ class Runner(nn.Module):
         self.l1_loss = nn.L1Loss()
         self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
         self.photometric_loss = PhotoMetricLoss()
+
+        self.w_photo = args.photometric
+        self.w_vnl = args.vnl_loss
+        self.w_l1 = args.l1
     
     def forward(self, img, ref_imgs, intrinsics, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train', args=None):
-
-        # compute output
-
-        w_l1, w_vnl, w_photometric = 1,1,1 #TODO set weights for various losses here, override in args
-        if not args.l1_loss:
-            w_l1 = 0
-        if not args.vnl_loss:
-            w_vnl = 0
-        if not args.photometric_loss:
-            w_photometric = 0
-        # st()
         disparities = self.disp_net(img) # 4 [8, 1, 448, 448]
-        # disparities =[1,1]
         if type(disparities) not in [tuple, list]:
             disparities = [disparities]
         depth = [1/disp for disp in disparities]
@@ -71,37 +62,37 @@ class Runner(nn.Module):
         _, pose = self.pose_net(img, ref_imgs)	# pose = [seq_len-2, batch , 6]
 
         #### code for loss calculation
-        if w_l1 > 0:
+        loss = 0
+        if self.w_l1 > 0:
             l1_loss = self.l1_loss(depth[0], gt_depth)
-            loss = w_l1 * l1_loss
+            loss += self.w_l1 * l1_loss
         
-        if w_vnl > 0:
+        if self.w_vnl > 0:
             vnl_loss = self.virtual_normal_loss(depth[0], gt_depth)
-            loss = w_vnl * vnl_loss
+            loss += self.w_vnl * vnl_loss
         
-        if w_photometric > 0:
-            photometric_loss, warped_imgs, diff_maps = self.photometric_loss(img, ref_imgs, intrinsics, depth[0], pose)
-            loss += w_photometric * photometric_loss
+        if self.w_photo > 0:
+            photometric_loss = self.photometric_loss(img, ref_imgs, intrinsics, depth[0], pose)
+            loss += self.w_photo * photometric_loss
         
         # Logging
         if log_losses:
             # print("Logging Scalars")
-            if w_l1 > 0:
+            if self.w_l1 > 0:
                 tb_writer.add_scalar(mode+'/l1_loss', l1_loss.item(), n_iter)
-            if w_vnl > 0:
+            if self.w_vnl > 0:
                 tb_writer.add_scalar(mode+'/vnl_loss', vnl_loss.item(), n_iter)
-            if w_photometric > 0:
+            if self.w_photo > 0:
                 tb_writer.add_scalar(mode+'/photometric_loss', photometric_loss.item(), n_iter)
+            
             tb_writer.add_scalar(mode+'/total_loss', loss.item(), n_iter)
 
         if log_output: 
             print("Logging Training Images")
-            # st()
             tb_writer.add_image(mode+'/train_input', tensor2array(img[0]), n_iter)
             output_depth = depth[0][0,0,:,:]
             tb_writer.add_image(mode+'/train_depth', tensor2array(output_depth, max_value=None), n_iter)
             output_disp = 1.0/output_depth
             tb_writer.add_image(mode+'/train_disp', tensor2array(output_disp, max_value=None, colormap='magma'), n_iter)
-
 
         return loss

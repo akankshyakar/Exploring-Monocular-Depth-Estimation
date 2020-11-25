@@ -43,7 +43,6 @@ class DispNet(nn.Module):
 
     def __init__(self, alpha=10, beta=0.01, lpg_flag = True, max_depth = 80):
         super(DispNet, self).__init__()
-
         self.alpha = alpha
         self.beta = beta
         self.lpg_flag = lpg_flag

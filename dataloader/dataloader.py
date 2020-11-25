@@ -98,9 +98,9 @@ class MyDataloader(data.Dataset):
         self.loader = loader
         self.sparsifier = sparsifier
 
-        assert (modality in self.modality_names), "Invalid modality type: " + modality + "\n" + \
-                                "Supported dataset types are: " + ''.join(self.modality_names)
-        self.modality = modality
+        # assert (modality in self.modality_names), "Invalid modality type: " + modality + "\n" + \
+        #                         "Supported dataset types are: " + ''.join(self.modality_names)
+        # self.modality = modality
 
         self.scenes = os.listdir(self.root)
         self.scenes = [os.path.join(self.root, scene) for scene in self.scenes]
@@ -131,7 +131,6 @@ class MyDataloader(data.Dataset):
                 sequence_set.append(sample)
         random.shuffle(sequence_set)
         self.samples = sequence_set
-        # import pdb; pdb.set_trace()
 
 
     def train_transform(self, rgb, depth):
@@ -157,24 +156,6 @@ class MyDataloader(data.Dataset):
         rgbd = np.append(rgb, np.expand_dims(sparse_depth, axis=2), axis=2)
         return rgbd
 
-    def __getraw__(self, index):
-        """
-        Args:
-            index (int): Index
-
-        Returns:
-            tuple: (rgb, depth) the raw data.
-        """
-        # path, target = self.imgs[index]
-        # rgb, depth = self.loader(path)
-        # # import pdb; pdb.set_trace()
-        # return rgb, depth
-        # sample = self.samples[index]
-        # rgb, depth = self.loader(sample['tgt'])
-        # ref_imgs = [self.loader(ref_img, image_only=True) for ref_img in sample['ref_imgs']]
-        # return rgb, ref_imgs, depth
-
-
     def __getitem__(self, index):
         # rgb, depth = self.__getraw__(index)
         # rgb, ref_imgs, depth = self.__getraw__(index)
@@ -193,67 +174,6 @@ class MyDataloader(data.Dataset):
 
         return rgb_tensor, ref_imgs_tensor, depth_tensor.unsqueeze(0), intrinsics
 
-        # if self.transform is not None:
-        #     rgb_np, depth_np = self.transform(rgb, depth)
-
-        # else:
-        #     raise(RuntimeError("transform not defined"))
-
-        #print('{:04d}  min={:f}  max={:f}  shape='.format(index, np.amin(depth_np), np.amax(depth_np)) + str(depth_np.shape))
-
-        # color normalization
-        # rgb_tensor = normalize_rgb(rgb_tensor)
-        # rgb_np = normalize_np(rgb_np)
-
-        # if self.modality == 'rgb':
-        #     input_np = rgb_np
-        # elif self.modality == 'rgbd':
-        #     input_np = self.create_rgbd(rgb_np, depth_np)
-        # elif self.modality == 'd':
-        #     input_np = self.create_sparse_depth(rgb_np, depth_np)
-
-        # input_tensor = to_tensor(input_np)
-        # while input_tensor.dim() < 3:
-        #     input_tensor = input_tensor.unsqueeze(0)
-        # depth_tensor = to_tensor(depth_np)
-        # #print('{:04d} '.format(index) + str(depth_tensor.shape))
-        # depth_tensor = depth_tensor.unsqueeze(0)
-        # #print('{:04d} '.format(index) + str(depth_tensor.shape))
-
-        # return input_tensor, depth_tensor
 
     def __len__(self):
         return len(self.samples)
-
-    # def __get_all_item__(self, index):
-    #     """
-    #     Args:
-    #         index (int): Index
-
-    #     Returns:
-    #         tuple: (input_tensor, depth_tensor, input_np, depth_np)
-    #     """
-    #     rgb, depth = self.__getraw__(index)
-    #     if self.transform is not None:
-    #         rgb_np, depth_np = self.transform(rgb, depth)
-    #     else:
-    #         raise(RuntimeError("transform not defined"))
-
-    #     # color normalization
-    #     # rgb_tensor = normalize_rgb(rgb_tensor)
-    #     # rgb_np = normalize_np(rgb_np)
-
-    #     if self.modality == 'rgb':
-    #         input_np = rgb_np
-    #     elif self.modality == 'rgbd':
-    #         input_np = self.create_rgbd(rgb_np, depth_np)
-    #     elif self.modality == 'd':
-    #         input_np = self.create_sparse_depth(rgb_np, depth_np)
-
-    #     input_tensor = to_tensor(input_np)
-    #     while input_tensor.dim() < 3:
-    #         input_tensor = input_tensor.unsqueeze(0)
-    #     depth_tensor = to_tensor(depth_np)
-    #     depth_tensor = depth_tensor.unsqueeze(0)
-
-    #     return input_tensor, depth_tensor, input_np, depth_np
