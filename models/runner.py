@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 import models
-from utils import save_checkpoint, log_output_tensorboard
+from utils import save_checkpoint
 import utils
 import pdb
 import numpy as np

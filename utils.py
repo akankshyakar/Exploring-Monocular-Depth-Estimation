@@ -144,12 +144,6 @@ def parse_command():
     parser.add_argument('--export', default='', type=str, help='path to pre-trained model to load to export to ONNX')
     parser.set_defaults(pretrained=True)
     args = parser.parse_args()
-    # if args.modality == 'rgb' and args.num_samples != 0:
-    #     print("number of samples is forced to be 0 when input modality is rgb")
-    #     args.num_samples = 0
-    # if args.modality == 'rgb' and args.max_depth != 0.0:
-    #     print("max depth is forced to be 0.0 when input modality is rgb/rgbd")
-    #     args.max_depth = 0.0
     return args
 
 def save_checkpoint(state, is_best, epoch, output_directory):
@@ -163,87 +157,6 @@ def save_checkpoint(state, is_best, epoch, output_directory):
         if os.path.exists(prev_checkpoint_filename):
             os.remove(prev_checkpoint_filename)
 
-def adjust_learning_rate(optimizer, epoch, lr_init):
-    """Sets the learning rate to the initial LR decayed by 10 every 5 epochs"""
-    lr = lr_init * (0.1 ** (epoch // 5))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
-
-def get_output_directory(args):
-    output_directory = os.path.join('results',
-        '{}.sparsifier={}.samples={}.modality={}.arch={}.decoder={}.criterion={}.lr={}.bs={}.pretrained={}'.
-        format(args.data, args.sparsifier, args.num_samples, args.modality, \
-            args.arch, args.decoder, args.criterion, args.lr, args.batch_size, \
-            args.pretrained))
-    return output_directory
-
-
-def colored_depthmap(depth, d_min=None, d_max=None):
-    if d_min is None:
-        d_min = np.min(depth)
-    if d_max is None:
-        d_max = np.max(depth)
-    depth_relative = (depth - d_min) / (d_max - d_min)
-    return 255 * cmap(depth_relative)[:,:,:3] # H, W, C
-
-
-def merge_into_row(input, depth_target, depth_pred):
-    rgb = 255 * np.transpose(np.squeeze(input.cpu().numpy()), (1,2,0)) # H, W, C
-    depth_target_cpu = np.squeeze(depth_target.cpu().numpy())
-    depth_pred_cpu = np.squeeze(depth_pred.data.cpu().numpy())
-
-    d_min = min(np.min(depth_target_cpu), np.min(depth_pred_cpu))
-    d_max = max(np.max(depth_target_cpu), np.max(depth_pred_cpu))
-
-    print('depth_min {:f}  depth_max {:f}'.format(d_min, d_max))
-
-    depth_target_col = colored_depthmap(depth_target_cpu, d_min, d_max)
-    depth_pred_col = colored_depthmap(depth_pred_cpu, d_min, d_max)
-    img_merge = np.hstack([rgb, depth_target_col, depth_pred_col])
-    
-    return img_merge
-
-
-def merge_into_row_with_gt(input, depth_input, depth_target, depth_pred):
-    rgb = 255 * np.transpose(np.squeeze(input.cpu().numpy()), (1,2,0)) # H, W, C
-    depth_input_cpu = np.squeeze(depth_input.cpu().numpy())
-    depth_target_cpu = np.squeeze(depth_target.cpu().numpy())
-    depth_pred_cpu = np.squeeze(depth_pred.data.cpu().numpy())
-
-    d_min = min(np.min(depth_input_cpu), np.min(depth_target_cpu), np.min(depth_pred_cpu))
-    d_max = max(np.max(depth_input_cpu), np.max(depth_target_cpu), np.max(depth_pred_cpu))
-    depth_input_col = colored_depthmap(depth_input_cpu, d_min, d_max)
-    depth_target_col = colored_depthmap(depth_target_cpu, d_min, d_max)
-    depth_pred_col = colored_depthmap(depth_pred_cpu, d_min, d_max)
-
-    img_merge = np.hstack([rgb, depth_input_col, depth_target_col, depth_pred_col])
-
-    return img_merge
-
-
-def add_row(img_merge, row):
-    return np.vstack([img_merge, row])
-
-
-def save_image(img_merge, filename):
-    img_merge = Image.fromarray(img_merge.astype('uint8'))
-    img_merge.save(filename)
-
-def log_output_tensorboard(writer, prefix, index, suffix, n_iter, depth, disp, warped, diff, mask):
-    disp_to_show = tensor2array(disp[-1][0], max_value=None, colormap='magma')
-    depth_to_show = tensor2array(depth[-1][0], max_value=None)
-    writer.add_image('{} Dispnet Output Normalized {}/{}'.format(prefix, suffix, index), disp_to_show, n_iter)
-    writer.add_image('{} Depth Output Normalized {}/{}'.format(prefix, suffix, index), depth_to_show, n_iter)
-    # log warped images along with explainability mask
-    for j, (warped_j, diff_j) in enumerate(zip(warped, diff)):
-        whole_suffix = '{} {}/{}'.format(suffix, j, index)
-        warped_to_show = tensor2array(warped_j)
-        diff_to_show = tensor2array(0.5*diff_j)
-        writer.add_image('{} Warped Outputs {}'.format(prefix, whole_suffix), warped_to_show, n_iter)
-        writer.add_image('{} Diff Outputs {}'.format(prefix, whole_suffix), diff_to_show, n_iter)
-        if mask is not None:
-            mask_to_show = tensor2array(mask[0,j], max_value=1, colormap='bone')
-            writer.add_image('{} Exp mask Outputs {}'.format(prefix, whole_suffix), mask_to_show, n_iter)
 def opencv_rainbow(resolution=1000):
     # Construct the opencv equivalent of Rainbow
     opencv_rainbow_data = (
@@ -264,9 +177,11 @@ def high_res_colormap(low_res_cmap, resolution=1000, max_value=1):
     new_x = np.linspace(0,max_value,resolution)
     high_res = np.stack([np.interp(new_x, x, low_res[:,i]) for i in range(low_res.shape[1])], axis=1)
     return ListedColormap(high_res)
+
 COLORMAPS = {'rainbow': opencv_rainbow(),
              'magma': high_res_colormap(cm.get_cmap('magma')),
              'bone': cm.get_cmap('bone', 10000)}
+
 def tensor2array(tensor, max_value=None, colormap='rainbow'):
     try:
         tensor = tensor.detach().cpu()
