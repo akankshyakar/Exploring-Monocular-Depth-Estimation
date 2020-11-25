@@ -11,10 +11,10 @@ import torch.utils.data
 # import custom_transforms
 import models
 import utils
-from utils import save_checkpoint, create_data_loaders, parse_command, compute_depth_metrics
+from utils import save_checkpoint, create_data_loaders, parse_command, compute_depth_metrics, tensor2array
 import pdb
 st = pdb.set_trace
-import loss_functions
+# import loss_functions
 from logger import TermLogger, AverageMeter
 from tensorboardX import SummaryWriter
 import torchvision
@@ -108,7 +108,6 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
     batch_time = AverageMeter()
     data_time = AverageMeter()
     losses = AverageMeter(precision=4)
-    w1, w2, w3 ,w4 = 1,1,1,1
     model.train()
 
     end = time.time()
@@ -153,7 +152,7 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
 
     return losses.avg[0]
 
-def validate (args, val_loader, model, epoch, logger, tb_writer):
+def validate (args, val_loader, model, epoch, logger, tb_writer, log_outputs=True):
     batch_time = AverageMeter()
     data_time = AverageMeter()
     log_output = 1 > 0
@@ -167,30 +166,27 @@ def validate (args, val_loader, model, epoch, logger, tb_writer):
     for i, (img, ref_imgs, gt_depth, intrinsics) in enumerate(val_loader):
         img = img.to(device)
         gt_depth = gt_depth.to(device)
-        # compute output
-        # st()
-        # output_disp = model(img, gt_depth, False, log_output, tb_writer, n_iter, True, mode ='val')
         output_disp=model(img, ref_imgs, intrinsics, gt_depth, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
         output_depth = 1/output_disp[0]
-        # if log_outputs and i < sample_nb_to_log:
-        #     if epoch == 0:
-        #         tb_writer.add_image('val Input/{}'.format(i), tensor2array(tgt_img[0]), 0)
-        #         depth_to_show = depth[0]
-        #         tb_writer.add_image('val target Depth Normalized/{}'.format(i),
-        #                             tensor2array(depth_to_show, max_value=None),
-        #                             epoch)
-        #         depth_to_show[depth_to_show == 0] = 1000
-        #         disp_to_show = (1/depth_to_show).clamp(0, 10)
-        #         tb_writer.add_image('val target Disparity Normalized/{}'.format(i),
-        #                             tensor2array(disp_to_show, max_value=None, colormap='magma'),
-        #                             epoch)
+        if log_outputs and i < 3:
+            if epoch == 0:
+                tb_writer.add_image('val Input/{}'.format(i), tensor2array(img[0]), 0)
+                depth_to_show = gt_depth[0]
+                tb_writer.add_image('val target Depth Normalized/{}'.format(i),
+                                    tensor2array(depth_to_show, max_value=None),
+                                    epoch)
+                depth_to_show[depth_to_show == 0] = 1000
+                disp_to_show = (1/depth_to_show).clamp(0, 10)
+                tb_writer.add_image('val target Disparity Normalized/{}'.format(i),
+                                    tensor2array(disp_to_show, max_value=None, colormap='magma'),
+                                    epoch)
 
-        #     tb_writer.add_image('val Dispnet Output Normalized/{}'.format(i),
-        #                         tensor2array(output_disp[0], max_value=None, colormap='magma'),
-        #                         epoch)
-        #     tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
-        #                         tensor2array(output_depth[0], max_value=None),
-        #                         epoch)
+            tb_writer.add_image('val Dispnet Output Normalized/{}'.format(i),
+                                tensor2array(output_disp[0], max_value=None, colormap='magma'),
+                                epoch)
+            tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
+                                tensor2array(output_depth[0], max_value=None),
+                                epoch)
         depth_errors.update(compute_depth_metrics(output_depth, gt_depth))
 
         batch_time.update(time.time() - end)
@@ -200,10 +196,6 @@ def validate (args, val_loader, model, epoch, logger, tb_writer):
             logger.valid_writer.write('valid: Time {} Abs Error {:.4f} ({:.4f})'.format(batch_time, depth_errors.val[0], depth_errors.avg[0]))
     logger.valid_bar.update(len(val_loader))
     return depth_errors.avg, depth_metric_names
-
-
-    
-
 
 if __name__ == '__main__':
     main()

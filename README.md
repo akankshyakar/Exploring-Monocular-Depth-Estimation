@@ -10,13 +10,13 @@ TODO:
 
 - [x] Overall pipeline - AK
 - [x] DispNet - AK
-- [ ] PoseNet - AB
+- [X] PoseNet - AB
 - [x] VNL Loss - AK
 - [x] LPG constraint - AK
-- [ ] Photometric Reconstruction - AB
+- [x] Photometric Reconstruction - AB
 - [ ] Height & uprightness Loss
 - [ ] Planar consistency loss
 - [x] Validation - AK
 - [x] Accuracy Metrics - AK
 - [ ] AR objects
-- [ ] Visualize Tensorboard 
+- [X] Visualize Tensorboard - AK
