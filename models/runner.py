@@ -46,11 +46,17 @@ class Runner(nn.Module):
         self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
 
     
-    def forward(self, img, ref_imgs, intrinsics, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train'):
+    def forward(self, img, ref_imgs, intrinsics, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train', args=None):
 
         # compute output
-        # w1, w2, w3 ,w4 = 1,1,1,1 #TODO set weights for various losses here
-        w1, w2, w3 ,w4 = 1,1,1,1 #TODO set weights for various losses here
+
+        w_l1, w_vnl, w_photometric = 1,1,1 #TODO set weights for various losses here, override in args
+        if args.l1_loss:
+            w_l1 = 0
+        if args.vnl_loss:
+            w_vnl = 0
+        if args.photometric_loss:
+            w_photometric = 0
         # st()
         disparities = self.disp_net(img) # 4 [8, 1, 448, 448]
         # disparities =[1,1]
@@ -69,10 +75,10 @@ class Runner(nn.Module):
         ###############################################
 
         #### code for loss calculation
-        # loss = self.l1_loss(depth, tgt_img)
-        loss = w1* self.virtual_normal_loss(depth[0], gt_depth)
+        loss = w_l1 * self.l1_loss(depth, gt_depth)
+        loss = w_vnl * self.virtual_normal_loss(depth[0], gt_depth)
         appearance_loss, warped_imgs, diff_maps = photometric_reconstruction_loss(img, ref_imgs, intrinsics, depth[0], pose)
-        loss += w2 * appearance_loss
+        loss += w_photometric * appearance_loss
         # loss['a'] = 0
         # loss['b'] = 0#SECONDARY LOSS
         ###############################################

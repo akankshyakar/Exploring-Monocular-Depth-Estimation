@@ -141,6 +141,12 @@ def parse_command():
                         help='evaluate model on validation set')
     parser.add_argument('--no-pretrain', dest='pretrained', action='store_false',
                         help='not to use ImageNet pre-trained weights')
+    parser.add_argument('--no_l1', dest='l1_loss', action='store_false',
+                        help='not to use l1 loss')
+    parser.add_argument('--no_vnl_loss', dest='vnl_loss', action='store_false',
+                        help='not to use vnl loss')
+    parser.add_argument('--no_photometric_loss', dest='photometric_loss', action='store_false',
+                        help='not to use photometric loss')
     parser.add_argument('--export', default='', type=str, help='path to pre-trained model to load to export to ONNX')
     parser.set_defaults(pretrained=True)
     args = parser.parse_args()

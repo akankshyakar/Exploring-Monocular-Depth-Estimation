@@ -127,7 +127,7 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
         intrinsics = intrinsics.to(device)
 
         # st()
-        loss = model(img, ref_imgs, intrinsics, depth, log_losses, log_output, tb_writer, n_iter, False, mode ='train')
+        loss = model(img, ref_imgs, intrinsics, depth, log_losses, log_output, tb_writer, n_iter, False, mode ='train', args=args)
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
 
@@ -164,12 +164,13 @@ def validate (args, val_loader, model, epoch, logger, tb_writer):
     model.eval()
     end = time.time()
     logger.valid_bar.update(0)
-    for i, (img, gt_depth) in enumerate(val_loader):
+    for i, (img, ref_imgs, gt_depth, intrinsics) in enumerate(val_loader):
         img = img.to(device)
         gt_depth = gt_depth.to(device)
         # compute output
         # st()
-        output_disp = model(img, gt_depth, False, log_output, tb_writer, n_iter, True, mode ='val')
+        # output_disp = model(img, gt_depth, False, log_output, tb_writer, n_iter, True, mode ='val')
+        output_disp=model(img, ref_imgs, intrinsics, gt_depth, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
         output_depth = 1/output_disp[0]
         # if log_outputs and i < sample_nb_to_log:
         #     if epoch == 0:
