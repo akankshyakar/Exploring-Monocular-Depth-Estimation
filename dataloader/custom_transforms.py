@@ -40,7 +40,7 @@ class ArrayToTensor(object):
             im = np.transpose(im, (2, 0, 1))
             # handle numpy array
             tensors.append(torch.from_numpy(im).float()/255)
-        depth_tensor = torch.from_numpy(depth.copy()).float()/255
+        depth_tensor = torch.from_numpy(depth.copy()).float()
         return tensors, depth_tensor, intrinsics
 
 
