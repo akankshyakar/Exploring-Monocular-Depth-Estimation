@@ -32,9 +32,9 @@ args = utils.parse_command()
 def main():
     global best_error, n_iter, device, scheduler
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
-    st()
+    # st()
     print('=> will save everything to {}'.format(args.save_path))
-    save_path = Path(','.join(args.save_path))
+    save_path = Path(args.save_path)
     save_path.makedirs_p()
     torch.manual_seed(args.seed)
     if args.evaluate:
@@ -52,8 +52,6 @@ def main():
             args.epoch_size = len(train_loader)
         # create model
         print("=> creating models")
-        if debug:
-            st()
         model = models.Runner(args)
         optimizer = torch.optim.SGD(model.parameters(), args.lr, \
             momentum=args.momentum, weight_decay=args.weight_decay)
@@ -66,7 +64,7 @@ def main():
         print("Training...")
         if debug:
             st()
-        for epoch in range(args.epochs):
+        for epoch in range(args.epochs+1):
             logger.epoch_bar.update(epoch)
 
             # train for one epoch
