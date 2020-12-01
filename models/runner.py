@@ -14,11 +14,14 @@ st = pdb.set_trace
 import matplotlib.pyplot as plt
 from loss.VNL import VNL_Loss
 from loss.PhotoMetric import PhotoMetricLoss
+from loss.im2pcl import CoordsRegressionLoss
 from utils import tensor2array
 torch.manual_seed(125)
 torch.cuda.manual_seed_all(125) 
 torch.backends.cudnn.deterministic = True
 device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+
+
 
 class Runner(nn.Module):
     def __init__(self, args):
@@ -43,48 +46,57 @@ class Runner(nn.Module):
             self.disp_net.init_weights()
         self.args = args
         self.l1_loss = nn.L1Loss()
-        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(448,448))
+        # TODO(abhorask): Fix focal_x, focal_y values
+        # TODO(abhroask): change input size depending on dataset
+        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(192, 256))
         self.photometric_loss = PhotoMetricLoss()
-
-        self.w_photo = args.photometric
-        self.w_vnl = args.vnl_loss
-        self.w_l1 = args.l1
+        self.coords_regression_loss = CoordsRegressionLoss()
     
-    def forward(self, img, ref_imgs, intrinsics, gt_depth, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train', args=None):
-        disparities = self.disp_net(img) # 4 [8, 1, 448, 448]
-        if type(disparities) not in [tuple, list]:
-            disparities = [disparities]
-        depth = [1/disp for disp in disparities]
-        
+    def forward(self, img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train', args=None):
+        disp_and_params = self.disp_net(img) # 4 [8, 1, 448, 448]
+        if type(disp_and_params) not in [tuple, list]:
+            disp_and_params = [disp_and_params]
+        depth = [1/disp for disp in disp_and_params[:-1]]
+        predicted_params_ranges = disp_and_params[-1]
+
         if ret_depth: #inference call
             return depth
-
-        _, pose = self.pose_net(img, ref_imgs)	# pose = [seq_len-2, batch , 6]
+        
+        if args.data == 'nyudepthv2':
+            _, pose = self.pose_net(img, ref_imgs)	# pose = [seq_len-2, batch , 6]
 
         #### code for loss calculation
         loss = 0
-        if self.w_l1 > 0:
+        if args.l1 > 0:
+            # TODO(abhorask): make more general
             l1_loss = self.l1_loss(depth[0], gt_depth)
-            loss += self.w_l1 * l1_loss
+            loss += args.l1 * l1_loss
         
-        if self.w_vnl > 0:
-            vnl_loss = self.virtual_normal_loss(depth[0], gt_depth)
-            loss += self.w_vnl * vnl_loss
+        if args.vnl_loss > 0:
+            vnl_loss = self.virtual_normal_loss(gt_depth, depth[0])
+            loss += args.vnl_loss * vnl_loss
         
-        if self.w_photo > 0:
+        if args.photometric > 0:
             photometric_loss = self.photometric_loss(img, ref_imgs, intrinsics, depth[0], pose)
-            loss += self.w_photo * photometric_loss
+            loss += args.photometric * photometric_loss
+
+        if args.im2pcl > 0:
+            d = depth[0].squeeze(1)
+            im2pcl_loss = self.coords_regression_loss(predicted_params_ranges, d, world_coords_gt, mask_gt, args)
+            loss += args.im2pcl * im2pcl_loss
         
         # Logging
         if log_losses:
             # print("Logging Scalars")
-            if self.w_l1 > 0:
+            if args.l1 > 0:
                 tb_writer.add_scalar(mode+'/l1_loss', l1_loss.item(), n_iter)
-            if self.w_vnl > 0:
+            if args.vnl_loss > 0:
                 tb_writer.add_scalar(mode+'/vnl_loss', vnl_loss.item(), n_iter)
-            if self.w_photo > 0:
+            if args.photometric > 0:
                 tb_writer.add_scalar(mode+'/photometric_loss', photometric_loss.item(), n_iter)
-            
+            if args.im2pcl > 0:
+                tb_writer.add_scalar(mode+'/coords_regression_loss', im2pcl_loss.item(), n_iter)
+
             tb_writer.add_scalar(mode+'/total_loss', loss.item(), n_iter)
 
         if log_output: 

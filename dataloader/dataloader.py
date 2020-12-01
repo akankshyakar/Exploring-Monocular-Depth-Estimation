@@ -171,8 +171,9 @@ class MyDataloader(data.Dataset):
             # intrinsics = np.copy(sample['intrinsics'])
             raise(RuntimeError("transform not defined"))
 
-
-        return rgb_tensor, ref_imgs_tensor, depth_tensor.unsqueeze(0), intrinsics
+        mask_gt = 0
+        world_coords_gt = 0
+        return rgb_tensor, ref_imgs_tensor, depth_tensor.unsqueeze(0), intrinsics, mask_gt, world_coords_gt
 
 
     def __len__(self):

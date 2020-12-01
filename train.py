@@ -56,7 +56,7 @@ def main():
         optimizer = torch.optim.SGD(model.parameters(), args.lr, \
             momentum=args.momentum, weight_decay=args.weight_decay)
         model = model.cuda()
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 15000, gamma=0.5)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 16000, gamma=0.5)
    
         logger = TermLogger(n_epochs=args.epochs, train_size=min(len(train_loader), args.epoch_size), valid_size=len(val_loader))
         logger.epoch_bar.start()
@@ -109,21 +109,37 @@ def train(args, train_loader, model, optimizer, scheduler, epoch_size, logger, t
 
     end = time.time()
     logger.train_bar.update(0)
-  
-    for i, (img, ref_imgs, depth, intrinsics) in enumerate(train_loader):
-        # st()
+
+    for i, data in enumerate(train_loader):
+        # if i >=463:
+        #     st()
+        if args.data == 'nyudepthv2':
+            (img, ref_imgs, depth, intrinsics, mask_gt, world_coords_gt) = data
+            depth = depth.float().to(device)
+            img = img.float().to(device)
+            ref_imgs = [img.float().to(device) for img in ref_imgs]
+            intrinsics = intrinsics.float().to(device)
+            # TODO(abhorask) throw error if these dummy values are used
+            mask_gt = mask_gt.to(device)
+            world_coords_gt = world_coords_gt.to(device)
+        elif args.data == 'sunrgbd':
+            img, depth, mask_gt, intrinsics, world_coords_gt = data['image'], data['depth'], data['mask'], data['intrinsics'], data['world_pcl']
+            depth = depth.unsqueeze(1).float().to(device)
+            img = img.float().to(device)
+            ref_imgs = []
+            intrinsics = intrinsics.float().to(device)
+            mask_gt = mask_gt.float().to(device)
+            world_coords_gt = world_coords_gt.float().to(device)
+
         log_losses = i > 0 and n_iter % args.print_freq == 0
         log_output = args.training_output_freq > 0 and n_iter % args.training_output_freq == 0
 
         # measure data loading time
         data_time.update(time.time() - end)
-        depth = depth.to(device)
-        img = img.to(device)
-        ref_imgs = [img.to(device) for img in ref_imgs]
-        intrinsics = intrinsics.to(device)
+
 
         # st()
-        loss = model(img, ref_imgs, intrinsics, depth, log_losses, log_output, tb_writer, n_iter, False, mode ='train', args=args)
+        loss = model(img, ref_imgs, intrinsics, depth, mask_gt, world_coords_gt, log_losses, log_output, tb_writer, n_iter, False, mode ='train', args=args)
         # record loss and EPE
         losses.update(loss.item(), args.batch_size)
 
@@ -160,10 +176,27 @@ def validate (args, val_loader, model, epoch, logger, tb_writer, log_outputs=Tru
     model.eval()
     end = time.time()
     logger.valid_bar.update(0)
-    for i, (img, ref_imgs, gt_depth, intrinsics) in enumerate(val_loader):
-        img = img.to(device)
-        gt_depth = gt_depth.to(device)
-        output_disp=model(img, ref_imgs, intrinsics, gt_depth, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
+    for i, data in enumerate(val_loader):
+
+        if args.data == 'nyudepthv2':
+            (img, ref_imgs, gt_depth, intrinsics, mask_gt, world_coords_gt) = data
+            gt_depth = gt_depth.to(device)
+            img = img.to(device)
+            ref_imgs = [img.to(device) for img in ref_imgs]
+            intrinsics = intrinsics.to(device)
+            # TODO(abhorask) throw error if these dummy values are used
+            mask_gt = mask_gt.to(device)
+            world_coords_gt = world_coords_gt.to(device)
+        elif args.data == 'sunrgbd':
+            img, gt_depth, mask_gt, intrinsics, world_coords_gt = data['image'], data['depth'], data['mask'], data['intrinsics'], data['world_pcl']
+            gt_depth = gt_depth.unsqueeze(1).to(device)
+            img = img.to(device)
+            ref_imgs = []
+            intrinsics = intrinsics.to(device)
+            mask_gt = mask_gt.to(device)
+            world_coords_gt = world_coords_gt.to(device)
+
+        output_disp=model(img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
         output_depth = 1/output_disp[0]
         if log_outputs and i < 3:
             if epoch == 0:

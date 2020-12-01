@@ -91,6 +91,17 @@ class DispNet(nn.Module):
         self.conv1_lpg = conv(4, upconv_planes[5])
         self.get_depth = predict_disp(upconv_planes[5])
 
+        # Camera Params Regressor
+        # Uses mean of out_iconv3 as input feature
+        self.linear_0 = nn.Linear(64, 100)
+        self.linear_1 = nn.Linear(100, 100)
+        self.linear_2 = nn.Linear(100, 4)
+        self.regressor = nn.Sequential(self.linear_0,
+                                    nn.ReLU(),
+                                    self.linear_1,
+                                    nn.ReLU(),
+                                    self.linear_2)
+
 
     def init_weights(self):
         for m in self.modules():
@@ -161,6 +172,9 @@ class DispNet(nn.Module):
         concat1 = torch.cat((out_upconv1, disp2_up), 1)
         out_iconv1 = self.iconv1(concat1) #[8, 16, 448, 448] **
         
+        avg_features = out_iconv3.mean(-1).mean(-1)
+        regressed_params = self.regressor(avg_features)
+
         if self.lpg_flag:
             reduc1x1 = self.reduc1x1(out_iconv1) #[8, 1, 448, 448]
             concat1 = torch.cat([reduc1x1, disp2_scaled, disp3_scaled, disp4_scaled], dim=1) #[8, 4, 448, 448]
@@ -169,6 +183,6 @@ class DispNet(nn.Module):
         else:
             disp1 = self.alpha * self.predict_disp1(out_iconv1) + self.beta
         if self.training:
-            return disp1, disp2, disp3, disp4
+            return disp1, disp2, disp3, disp4, regressed_params
         else:
-            return disp1
+            return disp1, regressed_params
