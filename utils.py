@@ -28,6 +28,7 @@ cudnn.benchmark = True
 @torch.no_grad()
 def compute_depth_metrics(gt, pred, crop=False):
     abs_diff, abs_rel, sq_rel, a1, a2, a3 = 0,0,0,0,0,0
+    # st()
     batch_size = gt.shape[0]
 
     for current_gt, current_pred in zip(gt, pred):

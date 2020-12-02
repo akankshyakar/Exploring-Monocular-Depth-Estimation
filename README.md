@@ -14,8 +14,7 @@ TODO:
 - [x] VNL Loss - AK
 - [x] LPG constraint - AK
 - [x] Photometric Reconstruction - AB
-- [ ] Height & uprightness Loss
-- [ ] Planar consistency loss
+- [x] Height & uprightness Loss -AB (don't work though)
 - [x] Validation - AK
 - [x] Accuracy Metrics - AK
 - [ ] AR objects

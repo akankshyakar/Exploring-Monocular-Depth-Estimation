@@ -48,7 +48,11 @@ class Runner(nn.Module):
         self.l1_loss = nn.L1Loss()
         # TODO(abhorask): Fix focal_x, focal_y values
         # TODO(abhroask): change input size depending on dataset
-        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=(192, 256))
+        if args.data == 'nyudepthv2':
+            input_size=(448, 448)
+        else:
+            input_size=(192, 256)
+        self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=input_size)
         self.photometric_loss = PhotoMetricLoss()
         self.coords_regression_loss = CoordsRegressionLoss()
     

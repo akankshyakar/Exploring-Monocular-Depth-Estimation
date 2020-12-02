@@ -196,8 +196,9 @@ def validate (args, val_loader, model, epoch, logger, tb_writer, log_outputs=Tru
             mask_gt = mask_gt.to(device)
             world_coords_gt = world_coords_gt.to(device)
 
-        output_disp=model(img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
-        output_depth = 1/output_disp[0]
+        output_depth=model(img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
+        
+        output_disp = 1/output_depth[0]
         if log_outputs and i < 3:
             if epoch == 0:
                 tb_writer.add_image('val Input/{}'.format(i), tensor2array(img[0]), 0)
@@ -217,7 +218,8 @@ def validate (args, val_loader, model, epoch, logger, tb_writer, log_outputs=Tru
             tb_writer.add_image('val Depth Output Normalized/{}'.format(i),
                                 tensor2array(output_depth[0], max_value=None),
                                 epoch)
-        depth_errors.update(compute_depth_metrics(output_depth, gt_depth))
+        # st()
+        depth_errors.update(compute_depth_metrics(gt_depth, output_depth[0]))
 
         batch_time.update(time.time() - end)
         end = time.time()
