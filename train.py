@@ -74,7 +74,7 @@ def main():
 
             # evaluate on validation set
             logger.reset_valid_bar()
-            if epoch%5==0: # TODO: fix this 
+            if epoch%1==0: # TODO: fix this 
                 print("Starting Validation")
                 if debug:
                     st()
