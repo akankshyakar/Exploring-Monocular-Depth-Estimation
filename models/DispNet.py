@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 from loss.LPG import reduction_1x1, local_planar_guidance, LPG_func
 import pdb
+from models.OrdinalRegression import OrdinalRegressionLayer
 st = pdb.set_trace
 def downsample_conv(in_planes, out_planes, kernel_size=3):
     return nn.Sequential(
@@ -41,12 +42,14 @@ def crop_like(input, ref):
 
 class DispNet(nn.Module):
 
-    def __init__(self, alpha=10, beta=0.01, lpg_flag = True, max_depth = 80):
+    def __init__(self, alpha=10, beta=0.01, lpg_flag = True, max_depth = 80, args = None):
         super(DispNet, self).__init__()
         self.alpha = alpha
         self.beta = beta
         self.lpg_flag = lpg_flag
+        self.ordinal_flag = (args.ordinal>0)
         self.max_depth = max_depth
+
 
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
         self.conv1 = downsample_conv(3,              conv_planes[0], kernel_size=7)
@@ -91,16 +94,23 @@ class DispNet(nn.Module):
         self.conv1_lpg = conv(4, upconv_planes[5])
         self.get_depth = predict_disp(upconv_planes[5])
 
+        # Complimented by ordinal regression loss in loss module
+        self.conv_1x1_1 = nn.Conv2d(upconv_planes[6], 2*args.ord_num, kernel_size=1, padding=0)
+        # self.conv_1x1_2 = nn.Conv2d(upconv_planes[5], 2*args.ord_num, kernel_size=1, padding=0)
+        # self.conv_1x1_3 = nn.Conv2d(upconv_planes[4], 2*args.ord_num, kernel_size=1, padding=0)
+        # self.conv_1x1_4 = nn.Conv2d(upconv_planes[3], 2*args.ord_num, kernel_size=1, padding=0)
+        self.ordinal_regression_layer = OrdinalRegressionLayer(args)
+
         # Camera Params Regressor
         # Uses mean of out_iconv3 as input feature
-        self.linear_0 = nn.Linear(64, 100)
-        self.linear_1 = nn.Linear(100, 100)
-        self.linear_2 = nn.Linear(100, 4)
-        self.regressor = nn.Sequential(self.linear_0,
-                                    nn.ReLU(),
-                                    self.linear_1,
-                                    nn.ReLU(),
-                                    self.linear_2)
+        # self.linear_0 = nn.Linear(64, 100)
+        # self.linear_1 = nn.Linear(100, 100)
+        # self.linear_2 = nn.Linear(100, 4)
+        # self.regressor = nn.Sequential(self.linear_0,
+        #                             nn.ReLU(),
+        #                             self.linear_1,
+        #                             nn.ReLU(),
+        #                             self.linear_2)
 
 
     def init_weights(self):
@@ -172,10 +182,29 @@ class DispNet(nn.Module):
         concat1 = torch.cat((out_upconv1, disp2_up), 1)
         out_iconv1 = self.iconv1(concat1) #[8, 16, 448, 448] **
         
-        avg_features = out_iconv3.mean(-1).mean(-1)
-        regressed_params = self.regressor(avg_features)
+        # avg_features = out_iconv3.mean(-1).mean(-1)
+        # regressed_params = self.regressor(avg_features)
 
-        if self.lpg_flag:
+        if self.ordinal_flag > 0:
+            if self.training:
+                out_conv_1x1_1 = self.conv_1x1_1(out_iconv1)
+                # out_conv_1x1_2 = self.conv_1x1_2(out_iconv2)
+                # out_conv_1x1_3 = self.conv_1x1_3(out_iconv3)
+                # out_conv_1x1_4 = self.conv_1x1_4(out_iconv4)
+                prob, disp1 = self.ordinal_regression_layer(out_conv_1x1_1)
+                # _, disp2 = self.ordinal_regression_layer(out_conv_1x1_2)
+                # _, disp3 = self.ordinal_regression_layer(out_conv_1x1_3)
+                # _, disp4 = self.ordinal_regression_layer(out_conv_1x1_4)
+                return disp1.unsqueeze(1), prob
+                # return disp1, disp2, disp3, disp4, prob1, regressed_params
+            else:
+                # Uniform distribution for ordinal regression
+                out_conv_1x1_1 = self.conv_1x1_1(out_iconv1)
+                _, disp1 = self.ordinal_regression_layer(out_conv_1x1_1)
+                return disp1.unsqueeze(1)
+                # return disp1, regressed_params
+
+        elif self.lpg_flag:
             reduc1x1 = self.reduc1x1(out_iconv1) #[8, 1, 448, 448]
             concat1 = torch.cat([reduc1x1, disp2_scaled, disp3_scaled, disp4_scaled], dim=1) #[8, 4, 448, 448]
             iconv1_lpg = self.conv1_lpg(concat1)

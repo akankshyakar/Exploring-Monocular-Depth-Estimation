@@ -156,9 +156,14 @@ def parse_command():
     parser.add_argument('--photometric', type=float, help='weight for photometric loss', metavar='W', default=0.75)
     parser.add_argument('--vnl-loss', type=float, help='weight for VNL loss', metavar='W', default=0.5)
     parser.add_argument('--l1', type=float, help='weight for L1 loss', metavar='W', default=0.2)
-    parser.add_argument('--im2pcl', type=float, help='weight for Coords Regression loss', metavar='W', default=0.2)
+    parser.add_argument('--im2pcl', type=float, help='weight for Coords Regression loss', metavar='W', default=0)
+    parser.add_argument('--ordinal', type=float, help='weight for Ordinal Regression loss', metavar='W', default=0.5)
 
     parser.add_argument('--lpg', action='store_true', help='to use LPG constraint')
+
+    parser.add_argument('--ord_num', type=int, help='Ord number for Ordinal regression loss', metavar='O', default=90)
+    parser.add_argument('--gamma_ord', type=float, help='Gamma for Ordinal regression loss', metavar='O', default=1.0)
+    parser.add_argument('--beta_ord', type=float, help='Beta for Ordinal regression loss (disparity)', metavar='O', default=100)
     
     parser.add_argument('--export', default='', type=str, help='path to pre-trained model to load to export to ONNX')
     parser.set_defaults(pretrained=True)

@@ -52,6 +52,8 @@ class CoordsRegressionLoss(nn.Module):
 
 
     def forward(self, predicted_params_ranges, depth, world_coords_gt, mask_gt, args):
+        if args.im2pcl > 0 and args.data != 'sunrgbd':
+          raise Exception("im2pcl loss should be used only with sunrgbd")
         predicted_params = params_to_ranges(predicted_params_ranges, world_coords_gt, mask_gt, args)
 
         predicted_focal, predicted_height, predicted_pitch, predicted_roll = predicted_params[:, 0], predicted_params[:, 1], \
