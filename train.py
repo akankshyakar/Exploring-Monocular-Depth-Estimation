@@ -198,7 +198,6 @@ def validate (args, val_loader, model, epoch, logger, tb_writer, log_outputs=Tru
             world_coords_gt = world_coords_gt.to(device)
 
         output_depth=model(img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
-        
         output_disp = 1/output_depth[0]
         if log_outputs and i < 3:
             if epoch == 0:

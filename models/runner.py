@@ -63,15 +63,15 @@ class Runner(nn.Module):
         disp_and_params = self.disp_net(img) # 4 [8, 1, 448, 448]
         predicted_params_ranges = disp_and_params[-1]
         disps = disp_and_params[:-1]
-
-        if args.ordinal > 0:
+        # st()
+        if args.ordinal > 0 and self.training:
             log_prob = disps[-1]
             disps = disps[:-1]
         
         if type(disps) not in [tuple, list]:
             disps = [disps]
         
-        depth = [1/disp for disp in disps[:-1]]
+        depth = [1/disp for disp in disps]
 
         if ret_depth: #inference call
             return depth
