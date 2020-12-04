@@ -4,6 +4,8 @@ import random
 import numpy as np
 from PIL import Image
 
+from skimage.transform import resize
+
 '''Set of tranform random routines that takes list of inputs as arguments,
 in order to have random but coherent transformations.'''
 
@@ -84,7 +86,7 @@ class RandomScaleCrop(object):
         output_intrinsics[0] *= x_scaling
         output_intrinsics[1] *= y_scaling
         scaled_images = [np.array(Image.fromarray(im.astype(np.uint8)).resize((scaled_w, scaled_h))).astype(np.float32) for im in images]
-        scaled_depth = np.array(Image.fromarray(depth.astype(np.uint8)).resize((scaled_w, scaled_h))).astype(np.float32)
+        scaled_depth = resize(depth, (scaled_h, scaled_w))
 
         offset_y = np.random.randint(scaled_h - out_h + 1)
         offset_x = np.random.randint(scaled_w - out_w + 1)
