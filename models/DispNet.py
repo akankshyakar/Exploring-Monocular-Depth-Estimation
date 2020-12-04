@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.init import xavier_uniform_, zeros_
 from loss.LPG import reduction_1x1, local_planar_guidance, LPG_func
+from loss.ordinal import OrdinalRegressionLayer
 import pdb
 st = pdb.set_trace
 def downsample_conv(in_planes, out_planes, kernel_size=3):
@@ -41,12 +42,14 @@ def crop_like(input, ref):
 
 class DispNet(nn.Module):
 
-    def __init__(self, alpha=10, beta=0.01, lpg_flag = True, max_depth = 80):
+    def __init__(self, alpha=10, beta=0.01, lpg_flag = True, ordinal_flag = True, max_depth = 80, ord_num=40):
         super(DispNet, self).__init__()
         self.alpha = alpha
         self.beta = beta
         self.lpg_flag = lpg_flag
         self.max_depth = max_depth
+        self.ord_num = ord_num
+        self.ordinal_flag = ordinal_flag
 
         conv_planes = [32, 64, 128, 256, 512, 512, 512]
         self.conv1 = downsample_conv(3,              conv_planes[0], kernel_size=7)
@@ -90,6 +93,15 @@ class DispNet(nn.Module):
         self.reduc1x1   = reduction_1x1(upconv_planes[6], upconv_planes[6], self.max_depth, is_final=True)
         self.conv1_lpg = conv(4, upconv_planes[5])
         self.get_depth = predict_disp(upconv_planes[5])
+
+        # Complimented by ordinal regression loss in loss module
+        self.ordinal_regression_layer = OrdinalRegressionLayer(self.ord_num, self.max_depth)
+
+        self.conv_1x1_1 = nn.Conv2d(upconv_planes[6], self.ord_num, kernel_size=1, padding=0)
+        # self.conv_1x1_2 = nn.Conv2d(upconv_planes[5], self.ord_num, kernel_size=1, padding=0)
+        # self.conv_1x1_3 = nn.Conv2d(upconv_planes[4], self.ord_num, kernel_size=1, padding=0)
+        # self.conv_1x1_4 = nn.Conv2d(upconv_planes[3], self.ord_num, kernel_size=1, padding=0)
+
 
         # Camera Params Regressor
         # Uses mean of out_iconv3 as input feature
@@ -174,6 +186,19 @@ class DispNet(nn.Module):
         
         avg_features = out_iconv3.mean(-1).mean(-1)
         regressed_params = self.regressor(avg_features)
+
+        if self.ordinal_flag:
+            if self.training:
+                out_conv_1x1_1 = self.conv_1x1_1(out_iconv1)
+                log_prob, disp1 = self.ordinal_regression_layer(out_conv_1x1_1)
+                return disp1.unsqueeze(1), disp2, disp3, disp4, log_prob, regressed_params
+                # return disp1, disp2, disp3, disp4, prob1, regressed_params
+            else:
+                # Uniform distribution for ordinal regression
+                out_conv_1x1_1 = self.conv_1x1_1(out_iconv1)
+                _, disp1 = self.ordinal_regression_layer(out_conv_1x1_1)
+                return disp1.unsqueeze(1), regressed_params
+                # return disp1, regressed_params
 
         if self.lpg_flag:
             reduc1x1 = self.reduc1x1(out_iconv1) #[8, 1, 448, 448]

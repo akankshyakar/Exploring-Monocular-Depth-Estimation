@@ -157,9 +157,12 @@ def parse_command():
     parser.add_argument('--vnl-loss', type=float, help='weight for VNL loss', metavar='W', default=0.5)
     parser.add_argument('--l1', type=float, help='weight for L1 loss', metavar='W', default=0.2)
     parser.add_argument('--im2pcl', type=float, help='weight for Coords Regression loss', metavar='W', default=0.2)
+    parser.add_argument('--ordinal', type=float, help='weight for Ordinal Regression Loss', metavar='W', default=0.2)
 
     parser.add_argument('--lpg', action='store_true', help='to use LPG constraint')
     
+    parser.add_argument('--ord-num', type=int, default=40, help='Number of classes for Ordinal regression')
+
     parser.add_argument('--export', default='', type=str, help='path to pre-trained model to load to export to ONNX')
     parser.set_defaults(pretrained=True)
     args = parser.parse_args()
