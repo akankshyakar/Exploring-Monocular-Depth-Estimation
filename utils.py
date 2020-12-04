@@ -156,7 +156,7 @@ def parse_command():
     parser.add_argument('--photometric', type=float, help='weight for photometric loss', metavar='W', default=0.75)
     parser.add_argument('--vnl-loss', type=float, help='weight for VNL loss', metavar='W', default=0.5)
     parser.add_argument('--l1', type=float, help='weight for L1 loss', metavar='W', default=0.2)
-    parser.add_argument('--im2pcl', type=float, help='weight for Coords Regression loss', metavar='W', default=0.2)
+    # parser.add_argument('--im2pcl', type=float, help='weight for Coords Regression loss', metavar='W', default=0.2)
     parser.add_argument('--ordinal', type=float, help='weight for Ordinal Regression Loss', metavar='W', default=0.2)
 
     parser.add_argument('--lpg', action='store_true', help='to use LPG constraint')

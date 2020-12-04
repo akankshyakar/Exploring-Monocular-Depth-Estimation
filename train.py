@@ -2,6 +2,7 @@ import argparse
 import time
 import csv
 import os
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 import torch
 from torch.autograd import Variable
 import numpy as np
