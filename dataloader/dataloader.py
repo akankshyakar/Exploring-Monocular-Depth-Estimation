@@ -129,7 +129,6 @@ class MyDataloader(data.Dataset):
                 for j in shifts:
                     sample['ref_imgs'].append(imgs[i+j])
                 sequence_set.append(sample)
-        random.shuffle(sequence_set)
         self.samples = sequence_set
 
 
