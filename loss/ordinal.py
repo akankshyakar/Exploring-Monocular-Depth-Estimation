@@ -7,9 +7,10 @@ import torch.nn.functional as F
 
 
 class OrdinalRegressionLayer(nn.Module):
-    def __init__(self, ord_num, max_depth):
+    def __init__(self, ord_num, max_depth, min_depth):
         super(OrdinalRegressionLayer, self).__init__()
         self.max_depth = max_depth
+        self.min_depth = min_depth
         self.ord_num = ord_num
 
     def forward(self, x):
@@ -19,14 +20,16 @@ class OrdinalRegressionLayer(nn.Module):
                  ord prob is the probability of each label, N x OrdNum x H x W
         """
         N, C, H, W = x.size()
-        labels = torch.linspace(0, self.max_depth, self.ord_num).to(x.device)
+        labels = torch.linspace(self.min_depth, self.max_depth, self.ord_num).to(x.device)
 
         log_prob = F.log_softmax(x, dim=1).view(N, C, H, W)
 
         ord_prob = F.softmax(x, dim=1)
-        disp = ord_prob * labels[None, :, None, None]
-        disp = torch.sum(disp, dim=1)
+        depth = ord_prob * labels[None, :, None, None]
+        depth = torch.sum(depth, dim=1)
         # import pdb; pdb.set_trace()
+
+        disp = 1/depth
 
         return log_prob, disp
 
@@ -40,7 +43,7 @@ class OrdinalRegressionLoss(object):
     def __call__(self, log_prob, gt):
         """
         :param prob: ordinal regression probability, N x Ord Num x H x W, torch.Tensor
-        :param gt: depth ground truth, NXHxW, torch.Tensor
+        :param gt: depth ground truth, NX1XHxW, torch.Tensor
         :return: loss: loss value, torch.float
         """
         N, C, H, W = log_prob.shape

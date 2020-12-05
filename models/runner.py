@@ -100,9 +100,9 @@ class Runner(nn.Module):
         #     loss += args.im2pcl * im2pcl_loss
         
         if args.ordinal > 0:
-            gt_disp = gt_depth.clone()
-            gt_disp[gt_depth>0] = 1/gt_disp[gt_depth>0]
-            ordinal_loss = self.ordinal_regression_loss(log_prob, gt_disp)
+            # gt_disp = gt_depth.clone()
+            # gt_disp[gt_depth>0] = 1/gt_disp[gt_depth>0]
+            ordinal_loss = self.ordinal_regression_loss(log_prob, gt_depth)
             loss += args.ordinal * ordinal_loss
 
         # Logging

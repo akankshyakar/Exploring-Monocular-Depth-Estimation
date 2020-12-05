@@ -95,7 +95,7 @@ class DispNet(nn.Module):
         self.get_depth = predict_disp(upconv_planes[5])
 
         # Complimented by ordinal regression loss in loss module
-        self.ordinal_regression_layer = OrdinalRegressionLayer(self.ord_num, self.max_depth)
+        self.ordinal_regression_layer = OrdinalRegressionLayer(self.ord_num, self.max_depth, self.beta)
 
         self.conv_1x1_1 = nn.Conv2d(upconv_planes[6], self.ord_num, kernel_size=1, padding=0)
         # self.conv_1x1_2 = nn.Conv2d(upconv_planes[5], self.ord_num, kernel_size=1, padding=0)

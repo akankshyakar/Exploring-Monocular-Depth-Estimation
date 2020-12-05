@@ -2,7 +2,7 @@ import argparse
 import time
 import csv
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 import torch
 from torch.autograd import Variable
 import numpy as np
@@ -33,6 +33,7 @@ args = utils.parse_command()
 def main():
     global best_error, n_iter, device, scheduler
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+    print("torch.cuda.is_available()", torch.cuda.is_available())
     # st()
     print('=> will save everything to {}'.format(args.save_path))
     save_path = Path(args.save_path)
