@@ -1,9 +1,6 @@
-# Semi-Supervised-3D-Structural-In-variance
+# Exploring-Monocular-Depth-Estimation
 
-Code for project 
-Semi-Supervised 3D Structural In-variance for World Coordinates Prediction for realistic AR object placement
-
-python3 train.py -m 'rgb' --save-path "../Semi-Supervised-3D-Structural-In-variance/saving" --path "/media/mscv/SecondHDD/data/nyu/"
+python3 train.py -m 'rgb' --save-path "<path to save>" --path "<data for NYU>"
 command to run
 
 TODO:
@@ -17,7 +14,6 @@ TODO:
 - [x] Height & uprightness Loss -AB (don't work though)
 - [x] Validation - AK
 - [x] Accuracy Metrics - AK
-- [ ] AR objects
 - [X] Visualize Tensorboard - AK
 
 
