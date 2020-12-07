@@ -1,9 +1,12 @@
 # Exploring-Monocular-Depth-Estimation
 
-python3 train.py -m 'rgb' --save-path "<path to save>" --path "<data for NYU>"
-command to run
+Command to execute
+```python3 train.py -m 'rgb' --save-path "<path to save>" --path "<data for NYU>"```
 
-TODO:
+Most of our code is borrowed from Github implementation of other papers. Our main motivation was to explore depth estimation using NYU RGBD data. We added [LPG](https://www.google.com), VNL Loss, Ordinal Loss and Photo Metric Loss. Used DispNet and PoseNet from SFM Learner
+
+Our PPT can be found here and project report and in depth results here.
+###TODO:
 
 - [x] Overall pipeline - AK
 - [x] DispNet - AK
@@ -18,7 +21,7 @@ TODO:
 - [X] Ordinal Regression (SORD) - AB
 
 
-EXPERIMENTS:
+###EXPERIMENTS:
 
 - [x] Only VNL, LPG (AK) ``` python3 train.py  --save-path "/media/mscv/SecondHDD/Semi-Supervised-3D-Structural-In-variance/new_save/vnlonlylpg" --lpg  --path "/media/mscv/SecondHDD/data/nyu/" --epoch-size 5000  --photometric 0 --vnl-loss 1 --l1 0 --ordinal 0 --epochs 15 ```
 - [x]  Only VNL,  NO LPG (AK) ```python3 train.py  --save-path "/media/mscv/SecondHDD/Semi-Supervised-3D-Structural-In-variance/new_save/vnlnolpg"  --path "/media/mscv/SecondHDD/data/nyu/" --epoch-size 5000  --photometric 0 --vnl-loss 1 --l1 0 --ordinal 0 --epochs 15 ```
@@ -31,3 +34,5 @@ EXPERIMENTS:
 - [X] VNL 0.5 ordinal (v3) 1 (AB) python3 train.py  --save-path "/home/rpl/abhorask/geoviz/Semi-Supervised-3D-Structural-In-variance/saving/v5o10"   --path "/media/rpl/Data/abhorask/nyuv2/data/" --epoch-size 5000 --epochs 12 --l1 0 --photometric 0 --vnl-loss 1 --ordinal 1 --max-depth 20
 - [X] Only Photometric (AB)  python3 train.py  --save-path "/home/rpl/abhorask/geoviz/Semi-Supervised-3D-Structural-In-variance/saving/photometricOnly"   --path "/media/rpl/Data/abhorask/nyuv2/data/" --epoch-size 5000 --epochs 12 --l1 0 --photometric 1 --vnl-loss 0 --ordinal 0
 
+
+REFERENCES
