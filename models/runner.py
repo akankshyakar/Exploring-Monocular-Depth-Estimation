@@ -57,7 +57,7 @@ class Runner(nn.Module):
         self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=input_size)
         self.photometric_loss = PhotoMetricLoss()
         self.coords_regression_loss = CoordsRegressionLoss()
-        self.ordinal_regression_loss = OrdinalRegressionLoss(args.ord_num, args.max_depth)
+        self.ordinal_regression_loss = OrdinalRegressionLoss(args.ord_num, args.max_depth, 0.01)
     
     def forward(self, img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, log_losses, log_output, tb_writer, n_iter, ret_depth, mode = 'train', args=None):
         disp_and_params = self.disp_net(img) # 4 [8, 1, 448, 448]
