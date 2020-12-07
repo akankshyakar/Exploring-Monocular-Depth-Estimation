@@ -189,14 +189,6 @@ def validate (args, val_loader, model, epoch, logger, tb_writer, log_outputs=Tru
             # TODO(abhorask) throw error if these dummy values are used
             mask_gt = mask_gt.to(device)
             world_coords_gt = world_coords_gt.to(device)
-        elif args.data == 'sunrgbd':
-            img, gt_depth, mask_gt, intrinsics, world_coords_gt = data['image'], data['depth'], data['mask'], data['intrinsics'], data['world_pcl']
-            gt_depth = gt_depth.unsqueeze(1).to(device)
-            img = img.to(device)
-            ref_imgs = []
-            intrinsics = intrinsics.to(device)
-            mask_gt = mask_gt.to(device)
-            world_coords_gt = world_coords_gt.to(device)
 
         output_depth=model(img, ref_imgs, intrinsics, gt_depth, mask_gt, world_coords_gt, False, log_output, tb_writer, n_iter, ret_depth=True, mode ='val', args=args)
         output_disp = 1/output_depth[0]

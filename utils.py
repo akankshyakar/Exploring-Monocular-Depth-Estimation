@@ -71,24 +71,7 @@ def create_data_loaders(args):
         val_dataset = NYUDataset(valdir, type='val')
 
         val_loader = torch.utils.data.DataLoader(val_dataset,
-            batch_size=1, shuffle=False, num_workers=args.workers, pin_memory=True)
-
-
-    elif args.data == 'sunrgbd':
-        train_dataset = MixedDataset(split='train', height=192, width=256, use_sunrgbd=True, use_knn_normals=False, focal_augmentation = True)
-        val_dataset = MixedDataset(split='val', height=192, width=256, use_sunrgbd=True, use_knn_normals=False, focal_augmentation = True)
-        param_ranges = train_dataset.get_ranges()
-        for k, v in param_ranges.items():
-            args.__setattr__(k, v)
-
-        train_loader = torch.utils.data.DataLoader(
-            train_dataset, batch_size=args.batch_size,
-            num_workers=args.workers, pin_memory=True, sampler=train_dataset.get_sampler(args.batch_size * args.epoch_size * args.epochs * 2))
-        val_loader = torch.utils.data.DataLoader(
-            val_dataset, batch_size=args.batch_size,
-            num_workers=args.workers, pin_memory=True, sampler=val_dataset.get_sampler(args.batch_size * args.epoch_size * args.epochs * 2))
-    
-    
+            batch_size=1, shuffle=False, num_workers=args.workers, pin_memory=True)    
     else:
         raise RuntimeError('Dataset not found.' +
                            'The dataset must be either of nyudepthv2, kitti, or zed.')
@@ -156,7 +139,6 @@ def parse_command():
     parser.add_argument('--photometric', type=float, help='weight for photometric loss', metavar='W', default=0.75)
     parser.add_argument('--vnl-loss', type=float, help='weight for VNL loss', metavar='W', default=0.5)
     parser.add_argument('--l1', type=float, help='weight for L1 loss', metavar='W', default=0.2)
-    # parser.add_argument('--im2pcl', type=float, help='weight for Coords Regression loss', metavar='W', default=0.2)
     parser.add_argument('--ordinal', type=float, help='weight for Ordinal Regression Loss', metavar='W', default=0.2)
 
     parser.add_argument('--lpg', action='store_true', help='to use LPG constraint')

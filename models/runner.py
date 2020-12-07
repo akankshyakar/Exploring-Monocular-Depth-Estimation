@@ -14,7 +14,6 @@ st = pdb.set_trace
 import matplotlib.pyplot as plt
 from loss.VNL import VNL_Loss
 from loss.PhotoMetric import PhotoMetricLoss
-from loss.im2pcl import CoordsRegressionLoss
 from loss.ordinal import OrdinalRegressionLoss
 from utils import tensor2array
 torch.manual_seed(125)
@@ -52,8 +51,6 @@ class Runner(nn.Module):
         # TODO(abhroask): change input size depending on dataset
         if args.data == 'nyudepthv2':
             input_size=(448, 448)
-        else:
-            input_size=(192, 256)
         self.virtual_normal_loss = VNL_Loss(focal_x= 519.0, focal_y= 519.0, input_size=input_size)
         self.photometric_loss = PhotoMetricLoss()
         self.coords_regression_loss = CoordsRegressionLoss()
@@ -93,11 +90,6 @@ class Runner(nn.Module):
         if args.photometric > 0:
             photometric_loss = self.photometric_loss(img, ref_imgs, intrinsics, depth[0], pose)
             loss += args.photometric * photometric_loss
-
-        # if args.im2pcl > 0:
-        #     d = depth[0].squeeze(1)
-        #     im2pcl_loss = self.coords_regression_loss(predicted_params_ranges, d, world_coords_gt, mask_gt, args)
-        #     loss += args.im2pcl * im2pcl_loss
         
         if args.ordinal > 0:
             # gt_disp = gt_depth.clone()
@@ -114,8 +106,6 @@ class Runner(nn.Module):
                 tb_writer.add_scalar(mode+'/vnl_loss', vnl_loss.item(), n_iter)
             if args.photometric > 0:
                 tb_writer.add_scalar(mode+'/photometric_loss', photometric_loss.item(), n_iter)
-            # if args.im2pcl > 0:
-            #     tb_writer.add_scalar(mode+'/coords_regression_loss', im2pcl_loss.item(), n_iter)
             if args.ordinal > 0:
                 tb_writer.add_scalar(mode+'/ordinal_regression_loss', ordinal_loss.item(), n_iter)
 
