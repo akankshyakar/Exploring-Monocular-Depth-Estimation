@@ -9,7 +9,7 @@
 Most of our code is borrowed from Github implementation of other papers. Our main motivation was to explore depth estimation using NYU RGBD data. We made the network to be both Regressor and a Classifier. We added [LPG](https://github.com/cogaplex-bts/bts/tree/master/pytorch), [VNL Loss](https://github.com/YvanYin/VNL_Monocular_Depth_Prediction), [Ordinal Loss](https://openaccess.thecvf.com/content_CVPR_2019/html/Diaz_Soft_Labels_for_Ordinal_Regression_CVPR_2019_paper.html)  and [Photo Metric Loss](https://github.com/ClementPinard/SfmLearner-Pytorch). 
 
 
-Our PPT can be found [here](https://docs.google.com/presentation/d/1hJW_AYzt0oAWWwNoiXRbCJRGS_835kfl62t-LIyp4pw/edit?usp=sharing) and project report and in depth results [here](https://www.google.com).
+Our PPT can be found [here](https://docs.google.com/presentation/d/1hJW_AYzt0oAWWwNoiXRbCJRGS_835kfl62t-LIyp4pw/edit?usp=sharing) and project report and in depth results [here](https://drive.google.com/file/d/1DeNmx2q35dh6U0ih0mmDsLdAyGr1hBUV/view?usp=sharing).
 
 
 ### TODO:
